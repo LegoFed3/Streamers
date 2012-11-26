@@ -701,3 +701,8 @@ void send_chunk()
     }
   }
 }
+
+void send_chunk_request()
+{
+return
+}

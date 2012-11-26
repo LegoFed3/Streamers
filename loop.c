@@ -97,7 +97,8 @@ void loop(struct nodeID *s, int csize, int buff_size)
       nodeid_free(remote);
     } else {
       struct timeval tmp;
-      send_offer();
+      //send_offer();
+      send_chunk_request();
       if (cnt++ % 10 == 0) {
         update_peers(NULL, NULL, 0);
       }
