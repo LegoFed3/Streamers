@@ -704,15 +704,42 @@ void send_chunk()
   }
 }
 
-struct chunkID_set *compose_request_cset()
+struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, struct peer *neighbours, int num_peers)
 {
-  struct chunkID_set *request_cset;
-//TODO: implement
+  struct chunkID_set *request_cset, *my_bmap;
+  int i, node_chunks_num, j, curr_chunkID;
 
-  /**** STUPID:ask someone at random ****/
-/*  target=(rand()%num_peers);*/
-  /**** /STUPID *************************/
+  request_cset = chunkID_set_init("size=0");
+  my_bmap = cb_to_bmap(cb);
+
+  //now look for available chunks in neighbours
+  for (i=0;i<num_peers;i++){
+    //neighbours[i].bmap is current bmap of neighbour we are checking against, type Chunkid_set
+    node_chunks_num=chunkID_set_size(neighbours[i].bmap);
+
+#define USE_EARLIEST
+#ifdef USE_EARLIEST
+    for (j=0;j<node_chunks_num;j++){
+#endif
+#ifdef USE_LATEST
+    for (j=node_chunks-1;j>=0;j--){
+#endif
+      curr_chunkID=chunkID_set_get_chunk(neighbours[i].bmap, j);
+      if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
+        //found chunk I'm missing, add it to those to request
+        if (chunkID_set_add_chunk(request_cset,curr_chunkID)<0){
+          //ops, something very bad happened here...
+        }
+      }
+    }
+  }
+
   return request_cset;
+}
+
+int request_peer_count()
+{
+  return 10;//TODO: how many should we select?
 }
 
 void send_chunk_request()
@@ -729,12 +756,12 @@ void send_chunk_request()
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
-  request_cset = compose_request_cset();
+  request_cset = compose_request_cset(10,0,neighbours,num_peers);
   num_chunks_to_request = chunkID_set_size(request_cset);
 
   //send request
   {
-    size_t selectedpeers_len = 10;//TODO: how many should we select?
+    size_t selectedpeers_len = request_peer_count();
     int chunkids[num_chunks_to_request], i;
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
