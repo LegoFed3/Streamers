@@ -43,6 +43,8 @@
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
+#define MAX_CHUNK_REQUEST_NUM 3
+
 static bool heuristics_distance_maxdeliver = false;
 static int bcast_after_receive_every = 0;
 static bool neigh_on_chunk_recv = false;
@@ -702,13 +704,63 @@ void send_chunk()
   }
 }
 
+struct chunkID_set *compose_request_cset()
+{
+  struct chunkID_set *request_cset;
+//TODO: implement
+
+  /**** STUPID:ask someone at random ****/
+/*  target=(rand()%num_peers);*/
+  /**** /STUPID *************************/
+  return request_cset;
+}
+
 void send_chunk_request()
 {
+  struct peer *neighbours;
+  struct peerset *pset;
+  int num_peers, num_chunks_to_request;
+  struct chunkID_set *request_cset;
+  struct chunk *buff;
   //select peer to request from
+  pset = get_peers();
+  neighbours = peerset_get_peers(pset);
+  num_peers = peerset_size(pset);
+  if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
+  request_cset = compose_request_cset();
+  num_chunks_to_request = chunkID_set_size(request_cset);
 
   //send request
+  {
+    size_t selectedpeers_len = 10;//TODO: how many should we select?
+    int chunkids[num_chunks_to_request], i;
+    struct peer *nodeids[num_peers];
+    struct peer *selectedpeers[selectedpeers_len];
+
+    //reduce load a little bit if there are losses on the path from this guy
+    double average_lossrate = get_average_lossrate_pset(pset);
+    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss
+    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {
+      return;
+    }
+
+    //put requested chunk ids in array
+    for (i = 0;i < num_chunks_to_request; i++) chunkids[num_chunks_to_request - 1 - i] = chunkID_set_get_chunk(request_cset,i);
+    //put selected node ids in array
+    for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
+    //now choose what to choose from whom
+    schedSelectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request, selectedpeers, &selectedpeers_len, SCHED_NEEDS, SCHED_PEER);//TODO: right scheduler? or need an appropriate one?
+
+    for (i=0; i<selectedpeers_len ; i++){
+      int transid = transaction_create(selectedpeers[i]->id);
+      dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
+      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
+      chunkID_set_free(request_cset);
+    }
+
+  }
   return;
 }
 
