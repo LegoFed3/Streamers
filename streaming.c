@@ -707,7 +707,7 @@ void send_chunk()
 struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, struct peer *neighbours, int num_peers)
 {
   struct chunkID_set *request_cset, *my_bmap;
-  int i, node_chunks_num, j, curr_chunkID;
+  int i, node_chunks_num, j, curr_chunkID, curr_requests=0;
 
   request_cset = chunkID_set_init("size=0");
   my_bmap = cb_to_bmap(cb);
@@ -722,7 +722,7 @@ struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, stru
     for (j=0;j<node_chunks_num;j++){
 #endif
 #ifdef USE_LATEST
-    for (j=node_chunks-1;j>=0;j--){
+/*    for (j=node_chunks-1;j>=0;j--){*/
 #endif
       curr_chunkID=chunkID_set_get_chunk(neighbours[i].bmap, j);
       if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
@@ -730,7 +730,15 @@ struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, stru
         if (chunkID_set_add_chunk(request_cset,curr_chunkID)<0){
           //ops, something very bad happened here...
         }
+        if (++curr_requests>=max_request_num){
+          //enough requests, abort
+          break;
+        }
       }
+    }
+    if (curr_requests>=max_request_num){
+      //enough requests, abort
+      break;
     }
   }
 
