@@ -704,5 +704,16 @@ void send_chunk()
 
 void send_chunk_request()
 {
-return;
+  //select peer to request from
+
+  //select chunk to request
+
+  //send request
+  return;
+}
+
+void send_requested_chunks(const struct nodeID *fromid, const struct nodeID *ownerid, struct chunkID_set *c_set, uint16_t trans_id)
+{
+
+  return;
 }

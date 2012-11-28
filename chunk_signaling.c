@@ -86,6 +86,16 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
     chunkID_set_free(cset_acc);
 }
 
+void request_received(const struct nodeID *fromid, struct chunkID_set *cset, uint16_t trans_id) {
+    //Do we know him?
+    struct peer *from = nodeid_to_peer(fromid,0);
+    dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
+    if(from){
+        //if so, oblige to his request
+        send_requested_chunks(from, cset, trans_id);
+    }
+}
+
 void accept_received(const struct nodeID *fromid, struct chunkID_set *cset, int max_deliver, uint16_t trans_id) {
   struct peer *from = nodeid_to_peer(fromid,0);   //verify that we have really offered, 0 at least garantees that we've known the peer before
 
@@ -132,6 +142,9 @@ int sigParseData(const struct nodeID *fromid, uint8_t *buff, int buff_len) {
           break;
         case sig_offer:
           offer_received(fromid, c_set, max_deliver, trans_id);
+          break;
+        case sig_request:
+          request_received(fromid, c_set, trans_id);
           break;
         case sig_accept:
           accept_received(fromid, c_set, chunkID_set_size(c_set), trans_id);
