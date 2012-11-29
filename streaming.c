@@ -40,6 +40,10 @@
 
 #include "scheduler_la.h"
 
+#ifndef USE_LATEST
+#define USE_EARLIEST
+#endif
+
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
@@ -704,7 +708,19 @@ void send_chunk()
   }
 }
 
-struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, struct peer *neighbours, int num_peers)
+ /**
+  * @brief selects which chunks to ask other peers
+  * 
+  * Given a neighbourhood, checks which nodes have chunks this one misses, then
+  * compose them into the returned chunkID_set. Compile time option for EARLIEST
+  * or LATEST first.
+  * 
+  * @param max_request_num an int setting a maximum number of requested chunks;
+  * @param neighbours a pointer to peer array containing the neighbours of this node;
+  * @param num_peers an int containing the size of the previous array;
+  * @return a pointer to a chunkID_set containing the chunks to request from other nodes;
+  */
+struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neighbours, int num_peers)
 {
   struct chunkID_set *request_cset, *my_bmap;
   int i, node_chunks_num, j, curr_chunkID, curr_requests=0;
@@ -717,12 +733,10 @@ struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, stru
     //neighbours[i].bmap is current bmap of neighbour we are checking against, type Chunkid_set
     node_chunks_num=chunkID_set_size(neighbours[i].bmap);
 
-#define USE_EARLIEST
 #ifdef USE_EARLIEST
     for (j=0;j<node_chunks_num;j++){
-#endif
-#ifdef USE_LATEST
-/*    for (j=node_chunks-1;j>=0;j--){*/
+#elif defined(USE_LATEST)
+    for (j=node_chunks-1;j>=0;j--){
 #endif
       curr_chunkID=chunkID_set_get_chunk(neighbours[i].bmap, j);
       if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
@@ -776,7 +790,7 @@ void send_chunk_request()
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
-  request_cset = compose_request_cset(10,0,neighbours,num_peers);
+  request_cset = compose_request_cset(10,neighbours,num_peers);//TODO: params
   num_chunks_to_request = chunkID_set_size(request_cset);
 
   //send request
