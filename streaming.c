@@ -745,11 +745,23 @@ struct chunkID_set *compose_request_cset(int max_request_num, int trans_id, stru
   return request_cset;
 }
 
+ /**
+  * @brief how many peers to pull from
+  * 
+  * Returns how many peers to pull from
+  * 
+  */
 int request_peer_count()
 {
   return 10;//TODO: how many should we select?
 }
 
+ /**
+  * @brief sends requests for missing chunks
+  * 
+  * Sends request for chunks thak neighbours have and this node is missing
+  *
+  */
 void send_chunk_request()
 {
   struct peer *neighbours;
@@ -799,6 +811,15 @@ void send_chunk_request()
   return;
 }
 
+ /**
+  * @brief sends chunks to requesting nodes
+  * 
+  * 
+  * 
+  * @param 
+  * @param 
+  * @param 
+  */
 void send_requested_chunks(const struct nodeID *fromid, const struct nodeID *ownerid, struct chunkID_set *c_set, uint16_t trans_id)
 {
 

@@ -86,12 +86,21 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
     chunkID_set_free(cset_acc);
 }
 
+ /**
+  * @brief answers to a received chunk request
+  * 
+  * Send requested chunks after receiving a request
+  * 
+  * @param fromid a pointer to the nodeID struct of the requesting peer;
+  * @param cset a pointer to the chunkID_set of requested chunks;
+  * @param trans_id an id if the current transaction;
+  */
 void request_received(const struct nodeID *fromid, struct chunkID_set *cset, uint16_t trans_id) {
     //Do we know him?
     struct peer *from = nodeid_to_peer(fromid,0);
     dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
     if(from){
-        //if so, oblige to his request
+        //if so, oblige to his request TODO:should we limit how much we send?
         send_requested_chunks(from, cset, trans_id);
     }
 }
