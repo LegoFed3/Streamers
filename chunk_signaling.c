@@ -89,19 +89,20 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
  /**
   * @brief answers to a received chunk request
   * 
-  * Send requested chunks after receiving a request
+  * Send requested chunks after receiving a request.
   * 
   * @param fromid a pointer to the nodeID struct of the requesting peer;
   * @param cset a pointer to the chunkID_set of requested chunks;
+  * @param max_deliver an int containing a maximum number of chunks to be sent;
   * @param trans_id an id if the current transaction;
   */
-void request_received(const struct nodeID *fromid, struct chunkID_set *cset, uint16_t trans_id) {
+void request_received(const struct nodeID *fromid, struct chunkID_set *cset, int max_deliver, uint16_t trans_id) {
     //Do we know him?
     struct peer *from = nodeid_to_peer(fromid,0);
     dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
     if(from){
         //if so, oblige to his request TODO:should we limit how much we send?
-        send_requested_chunks(from, cset, trans_id);
+        send_requested_chunks(from, cset, max_deliver, trans_id);
     }
 }
 
@@ -153,7 +154,7 @@ int sigParseData(const struct nodeID *fromid, uint8_t *buff, int buff_len) {
           offer_received(fromid, c_set, max_deliver, trans_id);
           break;
         case sig_request:
-          request_received(fromid, c_set, trans_id);
+          request_received(fromid, c_set, max_deliver, trans_id);
           break;
         case sig_accept:
           accept_received(fromid, c_set, chunkID_set_size(c_set), trans_id);

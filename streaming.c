@@ -790,7 +790,7 @@ void send_chunk_request()
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
-  request_cset = compose_request_cset(10,neighbours,num_peers);//TODO: params
+  request_cset = compose_request_cset(MAX_CHUNK_REQUEST_NUM,neighbours,num_peers);//TODO: params
   num_chunks_to_request = chunkID_set_size(request_cset);
 
   //send request
@@ -834,8 +834,67 @@ void send_chunk_request()
   * @param 
   * @param 
   */
-void send_requested_chunks(const struct nodeID *fromid, const struct nodeID *ownerid, struct chunkID_set *c_set, uint16_t trans_id)
+void send_requested_chunks(const struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id)
 {
+  int cset_send_size, i, d, chunkid, res;
+  struct chunk *c;
+  struct peer *dest = nodeid_to_peer(destid,0);
 
+  transaction_reg_accept(trans_id, destid);
+
+  cset_send_size = chunkID_set_size(cset_to_send);
+  //send the chunks if we stil have them
+
+  for (i = 0, d = 0; i < cset_send_size && d < max_deliver; i++){
+    chunkid = chunkID_set_get_chunk(cset_to_send, i);
+    c = cb_get_chunk(cb, chunkid);
+    if (!c) {	// we should have the chunk
+      dprintf("%s asked for chunk %d we do not own anymore\n", node_addr(destid), chunkid);
+      continue;
+    }
+    if (!dest || needs(dest, chunkid)) {	//he should not have it, but checking doesn't hurt.
+      chunk_attributes_update_sending(c);
+      res = sendChunk(destid, c, trans_id);
+      if (res >= 0) {
+        if(dest) chunkID_set_add_chunk(dest->bmap, c->id); //don't send twice ... assuming that it will actually arrive
+        d++;
+        reg_chunk_send(c->id);
+        if(chunk_log){fprintf(stderr, "TEO: Sending chunk %d to peer: %s at: %"PRIu64" Result: %d Size: %d bytes\n", c->id, node_addr(destid), gettimeofday_in_us(), res, c->size);}
+      } else {
+        fprintf(stderr,"ERROR sending chunk %d\n",c->id);
+      }
+    }
+  }
   return;
 }
+
+/*void send_accepted_chunks(struct nodeID *toid, struct chunkID_set *cset_acc, int max_deliver, uint16_t trans_id){*/
+/*  int i, d, cset_acc_size, res;*/
+/*  struct peer *to = nodeid_to_peer(toid, 0);*/
+
+/*  transaction_reg_accept(trans_id, toid);*/
+
+/*  cset_acc_size = chunkID_set_size(cset_acc);*/
+/*  reg_offer_accept_out(cset_acc_size > 0 ? 1 : 0);	//this only works if accepts are sent back even if 0 is accepted*/
+/*  for (i = 0, d=0; i < cset_acc_size && d < max_deliver; i++) {*/
+/*    const struct chunk *c;*/
+/*    int chunkid = chunkID_set_get_chunk(cset_acc, i);*/
+/*    c = cb_get_chunk(cb, chunkid);*/
+/*    if (!c) {	// we should have the chunk*/
+/*      dprintf("%s asked for chunk %d we do not own anymore\n", node_addr(toid), chunkid);*/
+/*      continue;*/
+/*    }*/
+/*    if (!to || needs(to, chunkid)) {	//he should not have it. Although the "accept" should have been an answer to our "offer", we do some verification*/
+/*      chunk_attributes_update_sending(c);*/
+/*      res = sendChunk(toid, c, trans_id);*/
+/*      if (res >= 0) {*/
+/*        if(to) chunkID_set_add_chunk(to->bmap, c->id); //don't send twice ... assuming that it will actually arrive*/
+/*        d++;*/
+/*        reg_chunk_send(c->id);*/
+/*        if(chunk_log){fprintf(stderr, "TEO: Sending chunk %d to peer: %s at: %"PRIu64" Result: %d Size: %d bytes\n", c->id, node_addr(toid), gettimeofday_in_us(), res, c->size);}*/
+/*      } else {*/
+/*        fprintf(stderr,"ERROR sending chunk %d\n",c->id);*/
+/*      }*/
+/*    }*/
+/*  }*/
+/*}*/
