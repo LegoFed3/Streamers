@@ -9,6 +9,7 @@
 #define SCHED_TYPE	schedSelectPeerFirst
 #define SCHED_WEIGHTING	SCHED_WEIGHTED
 #define SCHED_NEEDS	needs
+#define SCHED_HAS has
 #define SCHED_PEER	peerWeightUniform
 #define SCHED_CHUNK	chunkScoreChunkID
 

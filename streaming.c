@@ -69,6 +69,7 @@ static int cb_size;
 static int offer_per_tick = 1;	//N_p parameter of POLITO
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
+int has(struct peer *n, int cid);
 
 uint64_t gettimeofday_in_us(void)
 {
@@ -758,6 +759,8 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
     }
   }
 
+  fprintf(stderr,"DEBUG: finished composing request\n");
+
   return request_cset;
 }
 
@@ -781,7 +784,6 @@ int request_peer_count()
   */
 void send_chunk_request()
 {
-  fprintf(stderr,"DEBUG: sending chunk request\n");
   struct peer *neighbours;
   struct peerset *pset;
   int num_peers, num_chunks_to_request;
@@ -816,10 +818,12 @@ void send_chunk_request()
     //put selected node ids in array
     for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
     //now choose what to choose from whom
-    schedSelectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request, selectedpeers, &selectedpeers_len, SCHED_NEEDS, SCHED_PEER);//TODO: right scheduler? or need an appropriate one?
+    schedSelectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request, selectedpeers, &selectedpeers_len, SCHED_HAS, SCHED_PEER);
 
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
+fprintf(stderr,"DEBUG: >>>>>>>>>I GOT HERE:%d, peern=%d<<<<<<<<<<<<<<\n",i,selectedpeers_len);
+fprintf(stderr,"\t DEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
       chunkID_set_free(request_cset);
@@ -841,9 +845,8 @@ void send_chunk_request()
   *                    is willing to deliver;
   * @param trans_id an id for the current transaction;
   */
-void send_requested_chunks(const struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id)
+void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id)
 {
-  fprintf(stderr,"DEBUG: answering request chunk request\n");
   int cset_send_size, i, d, chunkid, res;
   struct chunk *c;
   struct peer *dest = nodeid_to_peer(destid,0);
@@ -869,9 +872,27 @@ void send_requested_chunks(const struct nodeID *destid, struct chunkID_set *cset
         reg_chunk_send(c->id);
         if(chunk_log){fprintf(stderr, "TEO: Sending chunk %d to peer: %s at: %"PRIu64" Result: %d Size: %d bytes\n", c->id, node_addr(destid), gettimeofday_in_us(), res, c->size);}
       } else {
-        fprintf(stderr,"ERROR sending chunk %d\n",c->id);
       }
     }
   }
   return;
 }
+
+ /**
+  * @brief scheduling function to select who has a certain chunk
+  * 
+  * returns true if the peer has the chunk, false otherwise.
+  * 
+  * @param n a pointer to a peer;
+  * @param cid a chunk id;
+  * @return true if he peer has the chunk, false o.w.;
+  */
+int has(struct peer *n, int cid){
+  int result=0;
+  if(n->bmap==NULL) return 0;//no point in selecting him if we do not know what it has
+  if(chunkID_set_size(n->bmap)>1){
+    result=chunkID_set_check(n->bmap, cid);//>=0 if found, <0 o.w.
+  }
+  return ((result>=0) ? 1 : 0);
+}
+
