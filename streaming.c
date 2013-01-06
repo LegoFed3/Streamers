@@ -67,6 +67,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
+static int requests_per_tick = 1;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -726,8 +727,6 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   struct chunkID_set *request_cset, *my_bmap;
   int i, node_chunks_num, j, curr_chunkID, curr_requests=0;
 
-  fprintf(stderr,"DEBUG: composing request\n");
-
   request_cset = chunkID_set_init("size=0");
   my_bmap = cb_to_bmap(cb);
 
@@ -758,9 +757,6 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
       break;
     }
   }
-
-  fprintf(stderr,"DEBUG: finished composing request\n");
-
   return request_cset;
 }
 
@@ -769,11 +765,11 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   * 
   * Returns how many peers to pull from
   * 
-  * @return an int showing the maximun numbers of request the node TODO:what?
+  * @return an int showing the maximun numbers of request the node sends per tick;
   */
 int request_peer_count()
 {
-  return 10;//TODO: how many should we select?
+  return requests_per_tick;
 }
 
  /**
@@ -822,8 +818,6 @@ void send_chunk_request()
 
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
-fprintf(stderr,"DEBUG: >>>>>>>>>I GOT HERE:%d, peern=%d<<<<<<<<<<<<<<\n",i,selectedpeers_len);
-fprintf(stderr,"\t DEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
       chunkID_set_free(request_cset);
