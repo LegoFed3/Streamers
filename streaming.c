@@ -67,6 +67,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
+static int requests_per_tick = 1;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -769,11 +770,11 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   * 
   * Returns how many peers to pull from
   * 
-  * @return an int showing the maximun numbers of request the node TODO:what?
+  * @return an int showing the maximun numbers of request the node sends per tick;
   */
 int request_peer_count()
 {
-  return 10;//TODO: how many should we select?
+  return requests_per_tick;
 }
 
  /**
