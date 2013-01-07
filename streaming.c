@@ -47,7 +47,9 @@
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
-#define MAX_CHUNK_REQUEST_NUM 3
+#ifndef MAX_CHUNK_REQUEST_NUM
+#define MAX_CHUNK_REQUEST_NUM 1
+#endif
 
 static bool heuristics_distance_maxdeliver = false;
 static int bcast_after_receive_every = 0;
@@ -67,7 +69,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
-static int requests_per_tick = 1;
+static int requests_per_tick = 3;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -769,13 +771,19 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   */
 int request_peer_count()
 {
-  return requests_per_tick;
+  int n;
+  struct peerset *pset;
+
+  pset = get_peers();
+  n = peerset_size(pset);
+  fprintf(stderr,"DEBUG: I have %d peers\n",n);
+  return requests_per_tick<n ? requests_per_tick : n;
 }
 
  /**
   * @brief sends requests for missing chunks
   * 
-  * Sends request for chunks thak neighbours have and this node is missing
+  * Sends request for chunks that neighbours have and this node is missing
   *
   */
 void send_chunk_request()
@@ -794,6 +802,7 @@ void send_chunk_request()
   //select chunk to request
   request_cset = compose_request_cset(MAX_CHUNK_REQUEST_NUM,neighbours,num_peers);//TODO: params
   num_chunks_to_request = chunkID_set_size(request_cset);
+  if (num_chunks_to_request<=0) return; //nothing to request
 
   //send request
   {
@@ -801,6 +810,8 @@ void send_chunk_request()
     int chunkids[num_chunks_to_request], i;
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
+
+    if (selectedpeers_len<=0){return;}
 
     //reduce load a little bit if there are losses on the path from this guy
     double average_lossrate = get_average_lossrate_pset(pset);
@@ -820,9 +831,8 @@ void send_chunk_request()
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
-      chunkID_set_free(request_cset);
     }
-
+    chunkID_set_free(request_cset);//TODO: maybe request specific chunks?
   }
   return;
 }

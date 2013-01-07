@@ -24,5 +24,7 @@ struct chunkID_set *get_chunks_to_accept(struct nodeID *fromid, const struct chu
 void send_offer();
 void send_accepted_chunks(struct nodeID *to, struct chunkID_set *cset_acc, int max_deliver, uint16_t trans_id);
 void send_bmap(struct nodeID *to);
+void send_chunk_request();
+void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id);
 
 #endif	/* STREAMING_H */
