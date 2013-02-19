@@ -59,6 +59,10 @@ struct measures {
   int accepts_out;
   int offers_in;
   int accepts_in;
+  int requests_out;
+  int requests_accepted_out;
+  int requests_in;
+  int requests_accepted_in;
 };
 
 static struct measures m;
@@ -154,6 +158,17 @@ void print_measures()
     print_measure("AcceptInRate", (double) m.accepts_in / timespan);
   }
   if (m.offers_in) print_measure("OfferAcceptInRatio", (double)m.accepts_in / m.offers_in);
+
+  if (timerisset(&print_tstart)) {
+    print_measure("RequestOutRate", (double) m.requests_out / timespan);
+/*    print_measure("AcceptedRequestOutRate", (double) m.requests_accepted_out / timespan);*/
+  }
+/*  if (m.offers_out) print_measure("RequestAcceptOutRatio", (double)m.requests_accepted_out / m.requests_out);*/
+  if (timerisset(&print_tstart)) {
+    print_measure("RequestInRate", (double) m.requests_in / timespan);
+    print_measure("AcceptedRequestInRate", (double) m.requests_accepted_in / timespan);
+  }
+  if (m.offers_in) print_measure("RequestAcceptInRatio", (double)m.requests_accepted_in / m.requests_in);
 }
 
 bool print_every()
@@ -275,6 +290,36 @@ void reg_offer_accept_in(bool b)
 
   m.offers_in++;
   if (b) m.accepts_in++;
+}
+
+/**
+ * @brief records outgoing requests
+ * 
+ * records outgoing requests.
+ *
+ * @param b boolean signifying wheter the request is served or not.
+ */
+void reg_request_out(bool b)
+{
+  if (!print_every()) return;
+
+  if (b) {m.requests_accepted_out++;}
+  else {m.requests_out++;}
+}
+
+/**
+ * @brief records incoming requests
+ * 
+ * records incoming requests.
+ *
+ * @param b boolean signifying wheter the request is served or not.
+ */
+void reg_request_in(bool b)
+{
+  if (!print_every()) return;
+
+  m.requests_in++;
+  if (b) m.requests_accepted_in++;
 }
 
 /*

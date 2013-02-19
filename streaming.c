@@ -825,6 +825,7 @@ void send_chunk_request()
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
+      reg_request_out(0);
     }
     chunkID_set_free(request_cset);//TODO: maybe request specific chunks?
   }
@@ -870,9 +871,11 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
         reg_chunk_send(c->id);
         if(chunk_log){fprintf(stderr, "TEO: Sending chunk %d to peer: %s at: %"PRIu64" Result: %d Size: %d bytes\n", c->id, node_addr(destid), gettimeofday_in_us(), res, c->size);}
       } else {
+        //??
       }
     }
   }
+  reg_request_in(1);//served request
   return;
 }
 
