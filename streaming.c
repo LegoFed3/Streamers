@@ -69,7 +69,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
-static int requests_per_tick = 10;
+static int requests_per_tick = 1; //just 1 for now 5;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -794,7 +794,7 @@ void send_chunk_request()
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
-  request_cset = compose_request_cset(MAX_CHUNK_REQUEST_NUM,neighbours,num_peers);//TODO: params
+  request_cset = compose_request_cset(MAX_CHUNK_REQUEST_NUM,neighbours,num_peers);
   num_chunks_to_request = chunkID_set_size(request_cset);
   if (num_chunks_to_request<=0) return; //nothing to request
 
@@ -815,7 +815,7 @@ void send_chunk_request()
     }
 
     //put requested chunk ids in array
-    for (i = 0;i < num_chunks_to_request; i++) chunkids[num_chunks_to_request - 1 - i] = chunkID_set_get_chunk(request_cset,i);
+    for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]
     //put selected node ids in array
     for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
     //now choose what to choose from whom
@@ -824,6 +824,7 @@ void send_chunk_request()
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
+      fprintf(stderr,"\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
       reg_request_out(0);
     }
@@ -851,6 +852,7 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
   struct peer *dest = nodeid_to_peer(destid,0);
 
   transaction_reg_accept(trans_id, destid);
+  dprintf("Received a request from %s, complying...\n",node_addr(destid));
 
   cset_send_size = chunkID_set_size(cset_to_send);
   //send the chunks if we stil have them
