@@ -40,17 +40,15 @@
 
 #include "scheduler_la.h"
 
-/*#ifndef USE_LATEST*/
-/*#define USE_EARLIEST*/
-#ifndef USE_EARLIEST
-#define USE_LATEST
+#ifndef USE_LATEST
+#define USE_EARLIEST
 #endif
 
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
 #ifndef MAX_CHUNK_REQUEST_NUM
-#define MAX_CHUNK_REQUEST_NUM 1
+#define MAX_CHUNK_REQUEST_NUM requests_per_tick*1
 #endif
 
 static bool heuristics_distance_maxdeliver = false;
@@ -71,7 +69,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
-static int requests_per_tick = 1; //just 1 for now 5;
+static int requests_per_tick = 5; //just 1 for now 5;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -816,6 +814,7 @@ void send_chunk_request()
 
     if (selectedpeers_len<=0){return;}
     fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);
+    fprintf(stderr,"\tDEBUG: selected %d chunks\n",chunkID_set_size(request_cset));
 
     //put requested chunk ids in array
     for (i = 0;i < num_chunks_to_request; i++) chunkids[num_chunks_to_request - 1 - i] = chunkID_set_get_chunk(request_cset,i);
@@ -826,6 +825,8 @@ void send_chunk_request()
                      selectedpeers, &selectedpeers_len,       //out, inout
                      SCHED_HAS,
                      SCHED_PEER);
+    fprintf(stderr,"\tDEBUG: after scheduling, selected %d peers\n",(int)selectedpeers_len);
+    fprintf(stderr,"\tDEBUG: after scheduling, selected %d chunks\n",chunkID_set_size(request_cset));
 
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
@@ -848,8 +849,8 @@ void send_chunk_request()
   * 
   * @param destid the nodeid of the requesting peer;
   * @param cset_to_send a cset marking which chunks are requested;
-  * @param max_deliver an int containing the maximum number of chunks the node 
-  *                    is willing to deliver;
+  * @param max_deliver an int containing the maximum number of chunks the 
+  *                    requesting node wants back;
   * @param trans_id an id for the current transaction;
   */
 void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id)
