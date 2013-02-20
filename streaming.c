@@ -40,8 +40,10 @@
 
 #include "scheduler_la.h"
 
-#ifndef USE_LATEST
-#define USE_EARLIEST
+/*#ifndef USE_LATEST*/
+/*#define USE_EARLIEST*/
+#ifndef USE_EARLIEST
+#define USE_LATEST
 #endif
 
 # define CB_SIZE_TIME_UNLIMITED 1e12
@@ -740,7 +742,7 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
 #ifdef USE_EARLIEST
     for (j=0;j<node_chunks_num;j++){
 #elif defined(USE_LATEST)
-    for (j=node_chunks-1;j>=0;j--){
+    for (j=node_chunks_num-1;j>=0;j--){
 #endif
       curr_chunkID=chunkID_set_get_chunk(neighbours[i].bmap, j);
       if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
@@ -786,7 +788,7 @@ void send_chunk_request()
   struct peerset *pset;
   int num_peers, num_chunks_to_request;
   struct chunkID_set *request_cset;
-  struct chunk *buff;
+
   //select peer to request from
   pset = get_peers();
   neighbours = peerset_get_peers(pset);
@@ -805,8 +807,6 @@ void send_chunk_request()
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
 
-    if (selectedpeers_len<=0){return;}
-
     //reduce load a little bit if there are losses on the path from this guy
     double average_lossrate = get_average_lossrate_pset(pset);
     average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss
@@ -814,21 +814,28 @@ void send_chunk_request()
       return;
     }
 
+    if (selectedpeers_len<=0){return;}
+    fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);
+
     //put requested chunk ids in array
-    for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]
+    for (i = 0;i < num_chunks_to_request; i++) chunkids[num_chunks_to_request - 1 - i] = chunkID_set_get_chunk(request_cset,i);
     //put selected node ids in array
     for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
     //now choose what to choose from whom
-    schedSelectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request, selectedpeers, &selectedpeers_len, SCHED_HAS, SCHED_PEER);
+    schedSelectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request,        //in
+                     selectedpeers, &selectedpeers_len,       //out, inout
+                     SCHED_HAS,
+                     SCHED_PEER);
 
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-      fprintf(stderr,"\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
+      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
+      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));
       reg_request_out(0);
     }
-    chunkID_set_free(request_cset);//TODO: maybe request specific chunks?
+    chunkID_set_free(request_cset);
   }
   return;
 }
