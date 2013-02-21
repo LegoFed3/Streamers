@@ -24,7 +24,7 @@ void reg_request_accept(bool b);
 void reg_offer_accept_out(bool b);
 void reg_offer_accept_in(bool b);
 void reg_request_out(bool b);
-void reg_request_in(bool b);
+void reg_request_in(bool b, int i);
 void reg_offers_in_flight(int running_offer_threads);
 void reg_queue_delay(double last_queue_delay);
 void reg_period(double period);

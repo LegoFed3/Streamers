@@ -47,8 +47,8 @@
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
-#ifndef MAX_CHUNK_REQUEST_NUM
-#define MAX_CHUNK_REQUEST_NUM requests_per_tick*1
+#ifndef MAX_CHUNK_PER_REQUEST_NUM
+#define MAX_CHUNK_PER_REQUEST_NUM 1
 #endif
 
 static bool heuristics_distance_maxdeliver = false;
@@ -69,7 +69,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
-static int requests_per_tick = 5; //just 1 for now 5;
+static int request_per_tick = 5; //how many chunks can be requested per tick
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -717,7 +717,7 @@ void send_chunk()
   * 
   * Given a neighbourhood, checks which nodes have chunks this one misses, then
   * compose them into the returned chunkID_set. Compile time option for EARLIEST
-  * or LATEST first.
+  * or LATEST useful first.
   * 
   * @param max_request_num an int setting a maximum number of requested chunks;
   * @param neighbours a pointer to peer array containing the neighbours of this node;
@@ -771,7 +771,7 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   */
 int request_peer_count()
 {
-  return requests_per_tick;
+  return request_per_tick/MAX_CHUNK_PER_REQUEST_NUM;
 }
 
  /**
@@ -794,7 +794,7 @@ void send_chunk_request()
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request
-  request_cset = compose_request_cset(MAX_CHUNK_REQUEST_NUM,neighbours,num_peers);
+  request_cset = compose_request_cset(request_per_tick,neighbours,num_peers);
   num_chunks_to_request = chunkID_set_size(request_cset);
   if (num_chunks_to_request<=0) return; //nothing to request
 
@@ -805,19 +805,19 @@ void send_chunk_request()
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
 
-    //reduce load a little bit if there are losses on the path from this guy
-    double average_lossrate = get_average_lossrate_pset(pset);
-    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss
-    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {
-      return;
-    }
+/*    //reduce load a little bit if there are losses on the path from this guy*/
+/*    double average_lossrate = get_average_lossrate_pset(pset);*/
+/*    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss*/
+/*    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {*/
+/*      return;*/
+/*    }*/
 
     if (selectedpeers_len<=0){return;}
     fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);
     fprintf(stderr,"\tDEBUG: selected %d chunks\n",chunkID_set_size(request_cset));
 
     //put requested chunk ids in array
-    for (i = 0;i < num_chunks_to_request; i++) chunkids[num_chunks_to_request - 1 - i] = chunkID_set_get_chunk(request_cset,i);
+    for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?
     //put selected node ids in array
     for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
     //now choose what to choose from whom
@@ -832,7 +832,7 @@ void send_chunk_request()
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
       fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_REQUEST_NUM, transid++);
+      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
       fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));
       reg_request_out(0);
     }
@@ -885,7 +885,7 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
       }
     }
   }
-  reg_request_in(1);//served request
+  reg_request_in(1,cset_send_size);//served request
   return;
 }
 

@@ -63,6 +63,7 @@ struct measures {
   int requests_accepted_out;
   int requests_in;
   int requests_accepted_in;
+  int requested_chunks_num;
 };
 
 static struct measures m;
@@ -168,7 +169,10 @@ void print_measures()
     print_measure("RequestInRate", (double) m.requests_in / timespan);
     print_measure("AcceptedRequestInRate", (double) m.requests_accepted_in / timespan);
   }
-  if (m.offers_in) print_measure("RequestAcceptInRatio", (double)m.requests_accepted_in / m.requests_in);
+  if (m.requests_in) {
+    print_measure("RequestAcceptInRatio", (double)m.requests_accepted_in / m.requests_in);
+    print_measure("AvgChunkPerRequest", (double)m.requested_chunks_num / m.requests_in);
+  }
 }
 
 bool print_every()
@@ -314,10 +318,11 @@ void reg_request_out(bool b)
  *
  * @param b boolean signifying wheter the request is served or not.
  */
-void reg_request_in(bool b)
+void reg_request_in(bool b, int i)
 {
   if (!print_every()) return;
 
+  m.requested_chunks_num+=i;
   m.requests_in++;
   if (b) m.requests_accepted_in++;
 }
