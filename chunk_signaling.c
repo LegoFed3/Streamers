@@ -101,8 +101,8 @@ void request_received(const struct nodeID *fromid, struct chunkID_set *cset, int
     struct peer *from = nodeid_to_peer(fromid,0);
     dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
     if(from){
-        //if so, oblige to his request TODO:should we limit how much we send?
-        send_requested_chunks(from, cset, max_deliver, trans_id);
+        //if so, handle his request
+        send_requested_chunks(fromid, cset, max_deliver, trans_id);
     }
 }
 
@@ -149,6 +149,7 @@ int sigParseData(const struct nodeID *fromid, uint8_t *buff, int buff_len) {
     switch (sig_type) {
         case sig_send_buffermap:
           bmap_received(fromid, ownerid, c_set, max_deliver, trans_id); //FIXME: cb_size has gone from signaling
+          fprintf(stderr,"\tDEBUG: reived bitmap from %s.",node_addr(ownerid));
           break;
         case sig_offer:
           offer_received(fromid, c_set, max_deliver, trans_id);

@@ -807,21 +807,17 @@ void send_chunk_request()
     int chunkids[num_chunks_to_request];
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
-/*    int pairs_len=selectedpeers_len*num_chunks_to_request;*/
-/*    int j;*/
-/*    struct PeerChunk pairs[pairs_len];*/
-/*    struct PeerChunk p;*/
 
-/*    //reduce load a little bit if there are losses on the path from this guy*/
-/*    double average_lossrate = get_average_lossrate_pset(pset);*/
-/*    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss*/
-/*    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {*/
-/*      return;*/
-/*    }*/
+    //reduce load a little bit if there are losses on the path from this guy
+    double average_lossrate = get_average_lossrate_pset(pset);
+    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss
+    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {
+      return;
+    }
 
     if (selectedpeers_len<=0){return;}
-    fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);
-    fprintf(stderr,"\tDEBUG: selected %d chunks\n",chunkID_set_size(request_cset));
+/*    fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);*/
+/*    fprintf(stderr,"\tDEBUG: selected %d chunks\n",chunkID_set_size(request_cset));*/
 
     //put requested chunk ids in array
     for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?
@@ -833,25 +829,15 @@ void send_chunk_request()
                      SCHED_HAS,
                      SCHED_PEER);
 
-/*    //build all peer-chunk pairs*/
-/*    for (i=0;i<selectedpeers_len;i++){*/
-/*      //current peer is neighbours+i*/
-/*      for (j=0;j<num_chunks_to_request;j++){*/
-/*        p.schedPeerID=??? need a peer not a pointer*/
-/*        pairs[i+j*selectedpeers_len]=*/
-/*      }*/
-/*    }*/
-/*    selectPairs(SchedOrdering ordering, struct PeerChunk *pairs, size_t pairs_len, pairEvaluateFunction evaluate, struct PeerChunk *selected, size_t *selected_len )*/
-
-    fprintf(stderr,"\tDEBUG: after scheduling, selected %d peers\n",(int)selectedpeers_len);
-    fprintf(stderr,"\tDEBUG: after scheduling, selected %d chunks\n",chunkID_set_size(request_cset));
+/*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d peers\n",(int)selectedpeers_len);*/
+/*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d chunks\n",chunkID_set_size(request_cset));*/
 
     for (i=0; i<selectedpeers_len ; i++){
       int transid = transaction_create(selectedpeers[i]->id);
       dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
+/*      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
       requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
-      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));
+/*      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
       reg_request_out(0);
     }
     chunkID_set_free(request_cset);
@@ -916,6 +902,8 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
       }
     }
   }
+/*  //now send bitmap to update our status*/
+/*  send_bmap(destid);*/
   reg_request_in(1,cset_send_size);//register served request
   return;
 }
