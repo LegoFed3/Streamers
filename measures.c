@@ -316,7 +316,8 @@ void reg_request_out(bool b)
  * 
  * records incoming requests.
  *
- * @param b boolean signifying wheter the request is served or not.
+ * @param b boolean signifying whether the request is served or not.
+ * @param i integer containing the number of chunks requested.
  */
 void reg_request_in(bool b, int i)
 {
