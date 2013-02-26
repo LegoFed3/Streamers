@@ -803,10 +803,11 @@ void send_chunk_request()
   //send request
   {
     size_t selectedpeers_len = request_peer_count(); //allow for 1 chunk per peer requests
-    int i;
+    int i,j;
     int chunkids[num_chunks_to_request];
     struct peer *nodeids[num_peers];
     struct peer *selectedpeers[selectedpeers_len];
+    bool usedselectedpeers[selectedpeers_len];
 
     //reduce load a little bit if there are losses on the path from this guy
     double average_lossrate = get_average_lossrate_pset(pset);
@@ -832,16 +833,38 @@ void send_chunk_request()
 /*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d peers\n",(int)selectedpeers_len);*/
 /*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d chunks\n",chunkID_set_size(request_cset));*/
 
-    for (i=0; i<selectedpeers_len ; i++){
-      int transid = transaction_create(selectedpeers[i]->id);
-      dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-/*      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
-      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
-/*      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
-      reg_request_out(0);
+    //now have to select just one chunk for one peer.
+    //TODO: this is stupid O(n^2), better idea?
+    for (i=0;i<selectedpeers_len;i++){
+      usedselectedpeers[i]=0;
     }
-    chunkID_set_free(request_cset);
+    for (j=0;j<num_chunks_to_request;j++){
+      chunkID_set_clear(request_cset,1);
+      chunkID_set_add_chunk(request_cset,chunkids[j]);
+      for(i=0;i<selectedpeers_len;i++){
+        if (usedselectedpeers[i]!=0) {continue;}
+        if (chunkID_set_check(selectedpeers[i]->bmap,chunkids[j])>=0){
+          //if this node has the chunk, ask it to him
+          int transid = transaction_create(selectedpeers[i]->id);
+          dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
+          requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
+          reg_request_out(0);
+          //and mark him as booked for this tick
+          usedselectedpeers[i]=1;
+        }
+      }
+    }
+
+/*    for (i=0; i<selectedpeers_len ; i++){*/
+/*      int transid = transaction_create(selectedpeers[i]->id);*/
+/*      dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
+/*      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
+/*      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);*/
+/*      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
+/*      reg_request_out(0);*/
   }
+  chunkID_set_free(request_cset);
+/*  }*/
   return;
 }
 
@@ -864,15 +887,6 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
   struct peer *dest = nodeid_to_peer(destid,0);
 
   cset_send_size = chunkID_set_size(cset_to_send);
-
-/*  //check if we already sent too many chinks this tick*/
-/*  if (fulfilled_requests_this_tick <= request_per_tick) {*/
-/*    reg_request_in(0,cset_send_size); //register denied request*/
-/*    fprintf(stderr,"\tDEBUG: Received a request from %s, denying...\n",node_addr(destid));*/
-/*    return;*/
-/*  }else{*/
-/*    fulfilled_requests_this_tick++;*/
-/*  }*/
 
   transaction_reg_accept(trans_id, destid);
   dprintf("Received a request from %s, complying...\n",node_addr(destid));
@@ -897,8 +911,6 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
         d++;
         reg_chunk_send(c->id);
         if(chunk_log){fprintf(stderr, "TEO: Sending chunk %d to peer: %s at: %"PRIu64" Result: %d Size: %d bytes\n", c->id, node_addr(destid), gettimeofday_in_us(), res, c->size);}
-      } else {
-        //??
       }
     }
   }
@@ -917,8 +929,10 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
   * @param cid a chunk id;
   * @return true if he peer has the chunk, false o.w.;
   */
-int has(struct peer *n, int cid){
+int has(struct peer *n, int cid)
+{
   int result=0;
+
   if(n->bmap==NULL) return 0;//no point in selecting him if we do not know what it has
   if(chunkID_set_size(n->bmap)>1){
     result=chunkID_set_check(n->bmap, cid);//>=0 if found, <0 o.w.
