@@ -817,8 +817,6 @@ void send_chunk_request()
     }
 
     if (selectedpeers_len<=0){return;}
-/*    fprintf(stderr,"\tDEBUG: selected %d peers\n",(int)selectedpeers_len);*/
-/*    fprintf(stderr,"\tDEBUG: selected %d chunks\n",chunkID_set_size(request_cset));*/
 
     //put requested chunk ids in array
     for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?
@@ -848,6 +846,7 @@ void send_chunk_request()
           int transid = transaction_create(selectedpeers[i]->id);
           dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
           requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
+/*          fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
           reg_request_out(0);
           //and mark him as booked for this tick
           usedselectedpeers[i]=1;
@@ -890,7 +889,6 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
 
   transaction_reg_accept(trans_id, destid);
   dprintf("Received a request from %s, complying...\n",node_addr(destid));
-  fprintf(stderr,"\tDEBUG: Received a request from %s, for %d chunks (max %d). Complying...\n",node_addr(destid),cset_send_size, max_deliver);
 
   //send the chunks if we stil have them
 
@@ -899,13 +897,11 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
     c = cb_get_chunk(cb, chunkid);
     if (!c) {	// we should have the chunk
       dprintf("%s asked for chunk %d we do not own anymore\n", node_addr(destid), chunkid);
-      fprintf(stderr,"\tDEBUG: %s asked for chunk %d we do not own anymore\n", node_addr(destid), chunkid);
       continue;
     }
     if (!dest || needs(dest, chunkid)) {	//he should not have it, but checking doesn't hurt.
       chunk_attributes_update_sending(c);
       res = sendChunk(destid, c, trans_id);
-      fprintf(stderr,"\tDEBUG: sent chunk %d to peer %s.\n",c->id, node_addr(destid));
       if (res >= 0) {
         if(dest) chunkID_set_add_chunk(dest->bmap, c->id); //don't send twice ... assuming that it will actually arrive
         d++;
@@ -914,8 +910,6 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
       }
     }
   }
-/*  //now send bitmap to update our status*/
-/*  send_bmap(destid);*/
   reg_request_in(1,cset_send_size);//register served request
   return;
 }
