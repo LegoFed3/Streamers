@@ -47,10 +47,6 @@
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
-#ifndef MAX_CHUNK_PER_REQUEST_NUM
-#define MAX_CHUNK_PER_REQUEST_NUM 1
-#endif
-
 static bool heuristics_distance_maxdeliver = false;
 static int bcast_after_receive_every = 0;
 static bool neigh_on_chunk_recv = false;
@@ -324,7 +320,6 @@ void received_chunk(struct nodeID *from, const uint8_t *buff, int len)
     chunk_attributes_update_received(&c);
     chunk_unlock(c.id);
     dprintf("Received chunk %d from peer: %s\n", c.id, node_addr(from));
-    fprintf(stderr,"\tDEBUG: received chunk %d from peer: %s\n", c.id, node_addr(from));
     if(chunk_log){fprintf(stderr, "TEO: Received chunk %d from peer: %s at: %"PRIu64" hopcount: %i Size: %d bytes\n", c.id, node_addr(from), gettimeofday_in_us(), chunk_get_hopcount(&c), c.size);}
     output_deliver(&c);
     res = cb_add_chunk(cb, &c);
@@ -773,7 +768,7 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   */
 int request_peer_count()
 {
-  return request_per_tick/MAX_CHUNK_PER_REQUEST_NUM;
+  return request_per_tick;
 }
 
  /**
@@ -828,9 +823,6 @@ void send_chunk_request()
                      SCHED_HAS,
                      SCHED_PEER);
 
-/*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d peers\n",(int)selectedpeers_len);*/
-/*    fprintf(stderr,"\tDEBUG: after scheduling, selected %d chunks\n",chunkID_set_size(request_cset));*/
-
     //now have to select just one chunk for one peer.
     //TODO: this is stupid O(n^2), better idea?
     for (i=0;i<selectedpeers_len;i++){
@@ -845,8 +837,7 @@ void send_chunk_request()
           //if this node has the chunk, ask it to him
           int transid = transaction_create(selectedpeers[i]->id);
           dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-          requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);
-/*          fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
+          requestChunks(selectedpeers[i]->id, request_cset, 1, transid++);
           reg_request_out(0);
           //and mark him as booked for this tick
           usedselectedpeers[i]=1;
@@ -854,13 +845,6 @@ void send_chunk_request()
       }
     }
 
-/*    for (i=0; i<selectedpeers_len ; i++){*/
-/*      int transid = transaction_create(selectedpeers[i]->id);*/
-/*      dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
-/*      fprintf(stderr,"\tDEBUG: sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
-/*      requestChunks(selectedpeers[i]->id, request_cset, MAX_CHUNK_PER_REQUEST_NUM, transid++);*/
-/*      fprintf(stderr,"\tDEBUG: sent request asking for %d chunks\n",chunkID_set_size(request_cset));*/
-/*      reg_request_out(0);*/
   }
   chunkID_set_free(request_cset);
 /*  }*/
