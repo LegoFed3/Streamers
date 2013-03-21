@@ -149,7 +149,6 @@ int sigParseData(const struct nodeID *fromid, uint8_t *buff, int buff_len) {
     switch (sig_type) {
         case sig_send_buffermap:
           bmap_received(fromid, ownerid, c_set, max_deliver, trans_id); //FIXME: cb_size has gone from signaling
-          fprintf(stderr,"\tDEBUG: reived bitmap from %s.",node_addr(ownerid));
           break;
         case sig_offer:
           offer_received(fromid, c_set, max_deliver, trans_id);
