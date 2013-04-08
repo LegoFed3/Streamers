@@ -839,7 +839,7 @@ void send_chunk_request()
           int transid = transaction_create(selectedpeers[i]->id);
           dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, node_addr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
           requestChunks(selectedpeers[i]->id, request_cset, 1, transid++);
-          reg_request_out(0);
+/*          reg_request_out(0);*/
           //and mark him as booked for this tick
           usedselectedpeers[i]=1;
         }
@@ -872,6 +872,8 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
 
   cset_send_size = chunkID_set_size(cset_to_send);
 
+  //decide whether to accept request here... NYI
+
   transaction_reg_accept(trans_id, destid);
   dprintf("Received a request from %s, complying...\n",node_addr(destid));
 
@@ -895,7 +897,7 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
       }
     }
   }
-  reg_request_in(1,cset_send_size);//register served request
+/*  reg_request_in(1,cset_send_size);//register served request*/
   return;
 }
 
