@@ -75,6 +75,7 @@ extern bool topo_in;
 extern bool topo_keep_best;
 extern bool topo_add_best;
 extern bool autotune_period;
+extern int fixed_playout_delay;
 
 #ifndef MONL
 extern struct timeval print_tdiff;
@@ -206,6 +207,7 @@ static void cmdline_parse(int argc, char *argv[])
         {"topo_keep_best", no_argument, 0, 0},
         {"topo_add_best", no_argument, 0, 0},
         {"autotune_period", required_argument, 0, 0},
+        {"fixed_playout_delay", required_argument,0 , 0},
 	{0, 0, 0, 0}
   };
 
@@ -228,6 +230,13 @@ static void cmdline_parse(int argc, char *argv[])
         else if( strcmp( "topo_keep_best", long_options[option_index].name ) == 0 ) { topo_keep_best = true; }
         else if( strcmp( "topo_add_best", long_options[option_index].name ) == 0 ) { topo_add_best = true; }
         else if( strcmp( "autotune_period", long_options[option_index].name ) == 0 ) { autotune_period = (bool) atoi(optarg); }
+        if( strcmp( "fixed_playout_delay", long_options[option_index].name ) == 0 ) {
+          fixed_playout_delay = atoi(optarg);
+          //make sure we have a large buffer if working with delayed playout
+          if(outbuff_size<5000){
+            outbuff_size=5000;
+          }
+        }
         break;
       case 'a':
         alpha_target = (double)atoi(optarg) / 100.0;

@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include <chunk.h>
 #include <chunkiser.h>
@@ -16,6 +17,9 @@
 #include "output.h"
 #include "measures.h"
 #include "dbg.h"
+
+int fixed_playout_delay=0;
+struct timeval period,tconsume,tcnt;
 
 static int last_chunk = -1;
 static int next_chunk = -1;
@@ -124,8 +128,47 @@ static void buffer_flush(int id)
   }
 }
 
+void tout_init(struct timeval *tcnt, const struct timeval *tconsume);
+void consume_chunk(){
+  int i=next_chunk % buff_size;
+  struct chunk *c = &buff[i].c;
+  struct timeval tmp;
+  gettimeofday(&tmp, NULL);
+  fprintf(stderr,"DEBUG: trying to consume chunk %d, at time %d.%d\n",next_chunk,tmp.tv_sec,tmp.tv_usec);
+  if(c->data){
+    fprintf(stderr,"DELAYREPORT_Y: delivering chunk %d\n",next_chunk);
+    //chunk_write(out, c); //called in buffer_free
+    last_chunk = c->id;
+    buffer_free(i);
+  }else{
+    fprintf(stderr,"DELAYREPORT_N: missing chunk %d, can't deliver!\n",next_chunk);
+    //this buffer space should be clear, but still...
+    free(buff[i].c.data);
+    buff[i].c.data = NULL;
+    next_chunk++;
+  }
+}
+
 void output_deliver(const struct chunk *c)
 {
+  if(fixed_playout_delay != 0){
+    if (next_chunk == -1){
+      //start chunk consumer
+      gettimeofday(&tconsume, NULL);
+      tconsume.tv_sec+=fixed_playout_delay;
+      fprintf(stderr,"DEBUG: start consuming at time %f, period %f (us)!\n",
+              tconsume.tv_sec * 1e6 + tconsume.tv_usec,period.tv_sec * 1e6 + period.tv_usec);
+    }
+    tout_init(&tcnt, &tconsume);
+    //now consume when tcnt=(0,0)
+    //TODO: move to separate thread
+    while(tcnt.tv_sec <= 0 && tcnt.tv_usec <= 0){
+      consume_chunk();
+      timeradd(&tconsume,&period,&tconsume);
+      tout_init(&tcnt, &tconsume);
+    }
+  }
+
   if (!buff) {
     fprintf(stderr, "Warning: code should use output_init!!! Setting output buffer to 8\n");
     output_init(8, NULL);
@@ -145,27 +188,30 @@ void output_deliver(const struct chunk *c)
     fprintf(stderr,"First RX Chunk ID: %d\n", c->id);
   }
 
-  if (c->id >= next_chunk + buff_size) {
-    int i;
+  if(fixed_playout_delay == 0){
+    if (c->id >= next_chunk + buff_size) {
+      int i;
 
-    /* We might need some space for storing this chunk,
-     * or the stored chunks are too old
-     */
-    for (i = next_chunk; i <= c->id - buff_size; i++) {
-      if (buff[i % buff_size].c.data) {
-        buffer_free(i % buff_size);
-      } else {
-        reg_chunk_playout(c->id, false, c->timestamp); // FIXME: some chunks could be counted as lost at the beginning, depending on the initialization of next_chunk
-        next_chunk++;
+      /* We might need some space for storing this chunk,
+       * or the stored chunks are too old
+       */
+      for (i = next_chunk; i <= c->id - buff_size; i++) {
+        if (buff[i % buff_size].c.data) {
+          buffer_free(i % buff_size);
+        } else {
+          reg_chunk_playout(c->id, false, c->timestamp); // FIXME: some chunks could be counted as lost at the beginning, depending on the initialization of next_chunk
+          next_chunk++;
+        }
       }
+      buffer_flush(next_chunk);
+      dprintf("Next is now %d, chunk is %d\n", next_chunk, c->id);
+      fprintf(stderr,"DEBUG: received a chunk too far ahead in the future!\n");
     }
-    buffer_flush(next_chunk);
-    dprintf("Next is now %d, chunk is %d\n", next_chunk, c->id);
   }
 
   dprintf("%d == %d?\n", c->id, next_chunk);
-  if (c->id == next_chunk) {
-    dprintf("\tOut Chunk[%d] - %d: %s\n", c->id, c->id % buff_size, c->data);
+  if (fixed_playout_delay == 0 && c->id == next_chunk) {
+    dprintf("\tcnt Chunk[%d] - %d: %s\n", c->id, c->id % buff_size, c->data);
 
     if(start_id == -1 || c->id >= start_id) {
       if(end_id == -1 || c->id <= end_id) {
@@ -185,6 +231,7 @@ void output_deliver(const struct chunk *c)
     buffer_flush(next_chunk);
   } else {
     dprintf("Storing %d (in %d)\n", c->id, c->id % buff_size);
+    fprintf(stderr,"DEBUG: Storing %d (in %d)\n", c->id, c->id % buff_size);
     if (buff[c->id % buff_size].c.data) {
       if (buff[c->id % buff_size].c.id == c->id) {
         /* Duplicate of a stored chunk */
