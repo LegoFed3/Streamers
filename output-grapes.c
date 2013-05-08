@@ -18,8 +18,8 @@
 #include "measures.h"
 #include "dbg.h"
 
-int fixed_playout_delay=0;
-struct timeval period,tconsume,tcnt;
+int fixed_playout_delay=-1;
+struct timeval tconsume;//period,tconsume,tcnt;
 
 static int last_chunk = -1;
 static int next_chunk = -1;
@@ -32,7 +32,6 @@ static char sflag = 0;
 static char eflag = 0;
 
 bool reorder = OUTPUT_REORDER;
-
 struct outbuf {
   struct chunk c;
 };
@@ -128,12 +127,12 @@ static void buffer_flush(int id)
   }
 }
 
-void tout_init(struct timeval *tcnt, const struct timeval *tconsume);
 void consume_chunk(){
   int i=next_chunk % buff_size;
   struct chunk *c = &buff[i].c;
-  struct timeval tmp;
-  gettimeofday(&tmp, NULL);
+/*  struct timeval tmp;*/
+/*  gettimeofday(&tmp, NULL);*/
+/*  fprintf(stderr,"DEBUG: trying to consume chunk %d, at time %d.%d\n",next_chunk,tmp.tv_sec,tmp.tv_usec);*/
   if(c->data){
     fprintf(stderr,"DELAYREPORT_Y: delivering chunk %d\n",next_chunk);
     //chunk_write(out, c); //called in buffer_free
@@ -150,20 +149,10 @@ void consume_chunk(){
 
 void output_deliver(const struct chunk *c)
 {
-  if(fixed_playout_delay != 0){
-    if (next_chunk == -1){
+  if(fixed_playout_delay >= 0 && next_chunk == -1){
       //start chunk consumer
       gettimeofday(&tconsume, NULL);
       tconsume.tv_sec+=fixed_playout_delay;
-    }
-    tout_init(&tcnt, &tconsume);
-    //now consume when tcnt=(0,0)
-    //TODO: move to separate thread
-    while(tcnt.tv_sec <= 0 && tcnt.tv_usec <= 0){
-      consume_chunk();
-      timeradd(&tconsume,&period,&tconsume);
-      tout_init(&tcnt, &tconsume);
-    }
   }
 
   if (!buff) {
@@ -185,7 +174,7 @@ void output_deliver(const struct chunk *c)
     fprintf(stderr,"First RX Chunk ID: %d\n", c->id);
   }
 
-  if(fixed_playout_delay == 0){
+  if(fixed_playout_delay < 0){
     if (c->id >= next_chunk + buff_size) {
       int i;
 
@@ -206,7 +195,7 @@ void output_deliver(const struct chunk *c)
   }
 
   dprintf("%d == %d?\n", c->id, next_chunk);
-  if (fixed_playout_delay == 0 && c->id == next_chunk) {
+  if (fixed_playout_delay < 0 && c->id == next_chunk) {
     dprintf("\tcnt Chunk[%d] - %d: %s\n", c->id, c->id % buff_size, c->data);
 
     if(start_id == -1 || c->id >= start_id) {

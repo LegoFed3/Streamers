@@ -159,3 +159,7 @@ void chunk_write(struct output_stream *out, const struct chunk *c)
     memmove(sendbuf, sendbuf + ret, pos);
   }
 }
+
+void consume_chunk(){
+    fprintf(stderr,"ERROR: chunkstream support for fixed playout delay NYI!!!");
+}

@@ -120,7 +120,7 @@ static void print_usage(int argc, char *argv[])
     "\t[--topo_keep_best]: keep best peers, not random subset\n"
     "\t[--topo_add_best]: add best peers among desired ones, not random subset\n"
     "\t[--autotune_period]: automatically tune output bandwidth, 1:on, 0:off\n"
-    "\t[--fixed_playout_delay]: set a fixed playout delay (in seconds). Recommend to use the -o option to set the output buffer to a suitably large value\n"
+    "\t[--fixed_playout_delay]: set a fixed (positive) playout delay (in seconds). Recommend to use the -o option to set the output buffer to a suitably large value as well\n"
     "\n"
     "Special Source Peer options\n"
     "\t[-m chunks]: set the number of copies the source injects in the overlay.\n"

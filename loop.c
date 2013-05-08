@@ -34,6 +34,10 @@
 #define FDSSIZE 16
 struct timeval period = {0, 500000};
 
+//fixed playout delay stuff
+#include "output.h"
+struct timeval tconsume = {-1, -1};
+
 //calculate timeout based on tnext
 void tout_init(struct timeval *tout, const struct timeval *tnext)
 {
@@ -63,7 +67,17 @@ void loop(struct nodeID *s, int csize, int buff_size)
   update_peers(NULL, NULL, 0);
   while (!done) {
     int len, res;
-    struct timeval tv;
+    struct timeval tv,tc;
+
+    if(tconsume.tv_sec >= 0 && tconsume.tv_usec >= 0){
+      tout_init(&tc, &tconsume);
+      if(tc.tv_sec <= 0 && tc.tv_usec <= 0){
+        struct timeval tmp;
+        consume_chunk();
+        timeradd(&tconsume,&period,&tmp);
+        tconsume=tmp;
+      }
+    }
 
     tout_init(&tv, &tnext);
     res = wait4data(s, &tv, NULL);
