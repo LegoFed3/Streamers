@@ -134,7 +134,6 @@ void consume_chunk(){
   struct chunk *c = &buff[i].c;
   struct timeval tmp;
   gettimeofday(&tmp, NULL);
-  fprintf(stderr,"DEBUG: trying to consume chunk %d, at time %d.%d\n",next_chunk,tmp.tv_sec,tmp.tv_usec);
   if(c->data){
     fprintf(stderr,"DELAYREPORT_Y: delivering chunk %d\n",next_chunk);
     //chunk_write(out, c); //called in buffer_free
@@ -156,8 +155,6 @@ void output_deliver(const struct chunk *c)
       //start chunk consumer
       gettimeofday(&tconsume, NULL);
       tconsume.tv_sec+=fixed_playout_delay;
-      fprintf(stderr,"DEBUG: start consuming at time %f, period %f (us)!\n",
-              tconsume.tv_sec * 1e6 + tconsume.tv_usec,period.tv_sec * 1e6 + period.tv_usec);
     }
     tout_init(&tcnt, &tconsume);
     //now consume when tcnt=(0,0)
@@ -205,7 +202,6 @@ void output_deliver(const struct chunk *c)
       }
       buffer_flush(next_chunk);
       dprintf("Next is now %d, chunk is %d\n", next_chunk, c->id);
-      fprintf(stderr,"DEBUG: received a chunk too far ahead in the future!\n");
     }
   }
 
@@ -231,7 +227,6 @@ void output_deliver(const struct chunk *c)
     buffer_flush(next_chunk);
   } else {
     dprintf("Storing %d (in %d)\n", c->id, c->id % buff_size);
-    fprintf(stderr,"DEBUG: Storing %d (in %d)\n", c->id, c->id % buff_size);
     if (buff[c->id % buff_size].c.data) {
       if (buff[c->id % buff_size].c.id == c->id) {
         /* Duplicate of a stored chunk */
