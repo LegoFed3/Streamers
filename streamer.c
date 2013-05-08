@@ -120,6 +120,7 @@ static void print_usage(int argc, char *argv[])
     "\t[--topo_keep_best]: keep best peers, not random subset\n"
     "\t[--topo_add_best]: add best peers among desired ones, not random subset\n"
     "\t[--autotune_period]: automatically tune output bandwidth, 1:on, 0:off\n"
+    "\t[--fixed_playout_delay]: set a fixed playout delay (in seconds). Recommend to use the -o option to set the output buffer to a suitably large value\n"
     "\n"
     "Special Source Peer options\n"
     "\t[-m chunks]: set the number of copies the source injects in the overlay.\n"
@@ -230,13 +231,7 @@ static void cmdline_parse(int argc, char *argv[])
         else if( strcmp( "topo_keep_best", long_options[option_index].name ) == 0 ) { topo_keep_best = true; }
         else if( strcmp( "topo_add_best", long_options[option_index].name ) == 0 ) { topo_add_best = true; }
         else if( strcmp( "autotune_period", long_options[option_index].name ) == 0 ) { autotune_period = (bool) atoi(optarg); }
-        if( strcmp( "fixed_playout_delay", long_options[option_index].name ) == 0 ) {
-          fixed_playout_delay = atoi(optarg);
-          //make sure we have a large buffer if working with delayed playout
-          if(outbuff_size<5000){
-            outbuff_size=5000;
-          }
-        }
+        if( strcmp( "fixed_playout_delay", long_options[option_index].name ) == 0 ) { fixed_playout_delay = atoi(optarg); }
         break;
       case 'a':
         alpha_target = (double)atoi(optarg) / 100.0;
