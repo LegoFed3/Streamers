@@ -44,6 +44,7 @@
 #include "loop.h"
 #include "dbg.h"
 #include "node_addr.h"
+#include "streamer.h"
 
 #define BUFFSIZE 512 * 1024
 #define FDSSIZE 16
@@ -52,6 +53,8 @@ struct timeval period = {0, 500000};
 //fixed playout delay stuff
 #include "output.h"
 struct timeval tconsume = {-1, -1};
+
+int opmode=MODE_PUSH;
 
 //calculate timeout based on tnext
 void tout_init(struct timeval *tout, const struct timeval *tnext)
@@ -126,8 +129,14 @@ void loop(struct nodeID *s, int csize, int buff_size)
       nodeid_free(remote);
     } else {
       struct timeval tmp;
-      //send_offer();
-      send_chunk_request();
+      if(opmode==MODE_PUSH){
+        send_offer();
+      }else if(opmode==MODE_PULL){
+        send_chunk_request();
+      }else{
+        fprintf(stderr,"ERROR: unknown mode of peration %d!!!",opmode);
+        exit(-1);
+      }
       if (cnt++ % 10 == 0) {
         update_peers(NULL, NULL, 0);
       }
@@ -153,6 +162,8 @@ void source_loop(const char *fname, struct nodeID *s, int csize, int chunks, int
   period.tv_usec = csize % 1000000;
   
   peers_init();
+
+if(opmode==MODE_PULL){fprintf(stderr,"\n\n\n>>>>DEBUG: using pull!!!\n\n\n");}
 
   if (source_init(fname, s, fds, FDSSIZE, buff_size) < 0) {
     fprintf(stderr,"Cannot initialize source, exiting");

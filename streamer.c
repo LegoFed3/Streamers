@@ -91,6 +91,8 @@ extern bool topo_keep_best;
 extern bool topo_add_best;
 extern bool autotune_period;
 extern int fixed_playout_delay;
+extern int opmode;
+extern int pullmode;
 
 #ifndef MONL
 extern struct timeval print_tdiff;
@@ -136,6 +138,8 @@ static void print_usage(int argc, char *argv[])
     "\t[--topo_add_best]: add best peers among desired ones, not random subset\n"
     "\t[--autotune_period]: automatically tune output bandwidth, 1:on, 0:off\n"
     "\t[--fixed_playout_delay]: set a fixed (positive) playout delay (in seconds). Recommend to use the -o option to set the output buffer to a suitably large value as well\n"
+    "\t[--pull_latest]: use a pull-based, latest-useful streaming alghoritm\n"
+    "\t[--pull_earliest]: use a pull-based, earliest-useful streaming alghoritm\n"
     "\n"
     "Special Source Peer options\n"
     "\t[-m chunks]: set the number of copies the source injects in the overlay.\n"
@@ -224,6 +228,8 @@ static void cmdline_parse(int argc, char *argv[])
         {"topo_add_best", no_argument, 0, 0},
         {"autotune_period", required_argument, 0, 0},
         {"fixed_playout_delay", required_argument,0 , 0},
+        {"pull_earliest", no_argument,0 , 0},
+        {"pull_latest", no_argument,0 , 0},
 	{0, 0, 0, 0}
   };
 
@@ -247,6 +253,11 @@ static void cmdline_parse(int argc, char *argv[])
         else if( strcmp( "topo_add_best", long_options[option_index].name ) == 0 ) { topo_add_best = true; }
         else if( strcmp( "autotune_period", long_options[option_index].name ) == 0 ) { autotune_period = (bool) atoi(optarg); }
         if( strcmp( "fixed_playout_delay", long_options[option_index].name ) == 0 ) { fixed_playout_delay = atoi(optarg); }
+        if( strcmp( "pull_earliest", long_options[option_index].name ) == 0 ) { opmode=MODE_PULL;pullmode=PULL_EARLIEST; }
+        if( strcmp( "pull_latest", long_options[option_index].name ) == 0 ) { opmode=MODE_PULL;pullmode=PULL_LATEST;
+/*fprintf(stderr,"DEBUG: mode is %d, should be %d\n\n\n",opmode, MODE_PULL); */
+        }
+
         break;
       case 'a':
         alpha_target = (double)atoi(optarg) / 100.0;

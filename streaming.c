@@ -57,10 +57,6 @@
 
 #include "scheduler_la.h"
 
-#ifndef USE_LATEST
-#define USE_EARLIEST
-#endif
-
 # define CB_SIZE_TIME_UNLIMITED 1e12
 uint64_t CB_SIZE_TIME = CB_SIZE_TIME_UNLIMITED;	//in millisec, defaults to unlimited
 
@@ -68,6 +64,8 @@ static bool heuristics_distance_maxdeliver = false;
 static int bcast_after_receive_every = 0;
 static bool neigh_on_chunk_recv = false;
 static bool send_bmap_before_push = false;
+
+int pullmode=PULL_LATEST;
 
 struct chunk_attributes {
   uint64_t deadline;
@@ -343,6 +341,7 @@ void received_chunk(struct nodeID *from, const uint8_t *buff, int len)
     chunk_unlock(c.id);
     dprintf("Received chunk %d from peer: %s\n", c.id, node_addr_tr(from));
     if(chunk_log){fprintf(stderr, "TEO: Received chunk %d from peer: %s at: %"PRIu64" hopcount: %i Size: %d bytes\n", c.id, node_addr_tr(from), gettimeofday_in_us(), chunk_get_hopcount(&c), c.size);}
+    fprintf(stderr,"REPORTchunkdelay=%"PRIu64"\n",gettimeofday_in_us()-c.timestamp);
     output_deliver(&c);
     res = cb_add_chunk(cb, &c);
     reg_chunk_receive(c.id, c.timestamp, chunk_get_hopcount(&c), res==E_CB_OLD, res==E_CB_DUPLICATE);
@@ -743,10 +742,10 @@ void send_chunk()
   * @param num_peers an int containing the size of the previous array;
   * @return a pointer to a chunkID_set containing the chunks to request from other nodes;
   */
-struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neighbours, int num_peers)
+struct chunkID_set *compose_request_cset(int max_request_num, struct peer **neighbours, int num_peers)
 {
   struct chunkID_set *request_cset, *my_bmap;
-  int i, node_chunks_num, j, curr_chunkID, curr_requests=0;
+  int i, node_chunks_num, j, curr_chunkID, curr_requests=0,target;
 
   request_cset = chunkID_set_init("size=0");
   my_bmap = cb_to_bmap(cb);
@@ -754,14 +753,20 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
   //now look for available chunks in neighbours
   for (i=0;i<num_peers;i++){
     //neighbours[i].bmap is current bmap of neighbour we are checking against, type Chunkid_set
-    node_chunks_num=chunkID_set_size(neighbours[i].bmap);
+    if(neighbours[i]->bmap){
+      node_chunks_num=chunkID_set_size(neighbours[i]->bmap);
+    }else{
+      continue; //don't know what it has...why??
+    }
 
-#ifdef USE_EARLIEST
-    for (j=0;j<node_chunks_num;j++){
-#elif defined(USE_LATEST)
-    for (j=node_chunks_num-1;j>=0;j--){
-#endif
-      curr_chunkID=chunkID_set_get_chunk(neighbours[i].bmap, j);
+    if(pullmode==PULL_EARLIEST){
+      j=0;target=node_chunks_num-1;
+    }else if(pullmode==PULL_LATEST){
+      j=node_chunks_num-1;target=0;
+    }
+
+    while (j != target && node_chunks_num != 0){
+      curr_chunkID=chunkID_set_get_chunk(neighbours[i]->bmap, j);
       if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
         //found chunk I'm missing, add it to those to request
         if (chunkID_set_add_chunk(request_cset,curr_chunkID)<0){
@@ -769,13 +774,11 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer *neigh
         }
         if (++curr_requests>=max_request_num){
           //enough requests, abort
-          break;
+          return request_cset;
         }
       }
-    }
-    if (curr_requests>=max_request_num){
-      //enough requests, abort
-      break;
+    if(pullmode==PULL_EARLIEST){ j++; }
+    else if(pullmode==PULL_LATEST){ j--; }
     }
   }
   return request_cset;
@@ -801,7 +804,7 @@ int request_peer_count()
   */
 void send_chunk_request()
 {
-  struct peer *neighbours;
+  struct peer **neighbours;
   struct peerset *pset;
   int num_peers, num_chunks_to_request;
   struct chunkID_set *request_cset;
@@ -815,9 +818,25 @@ void send_chunk_request()
   //select chunk to request
   request_cset = compose_request_cset(request_per_tick,neighbours,num_peers);
   num_chunks_to_request = chunkID_set_size(request_cset);
-  if (num_chunks_to_request<=0) return; //nothing to request
-
-  //send request
+  if (num_chunks_to_request<=0){
+    //request something at random, maybe we will get it, o.w. we will have a fresher bmap
+    int i,curr_chunkID,transid;
+    struct chunkID_set  *my_bmap;
+    my_bmap = cb_to_bmap(cb);
+    for(i=chunkID_set_size(my_bmap)-1;i>=0;i--){
+      curr_chunkID=chunkID_set_get_chunk(my_bmap, i);
+      if(chunkID_set_check(my_bmap,curr_chunkID) < 0){
+        chunkID_set_add_chunk(request_cset,curr_chunkID);
+        break;
+      }
+    }
+    //now curr_chunkID is one missing chunk, ask it at random
+    i=rand()%num_peers;
+    transid = transaction_create(neighbours[i]->id);
+    requestChunks(neighbours[i]->id, request_cset, 1, transid++);
+    return;
+  }
+  //match then send requests
   {
     size_t selectedpeers_len = request_peer_count(); //allow for 1 chunk per peer requests
     int i,j;
@@ -838,7 +857,7 @@ void send_chunk_request()
     //put requested chunk ids in array
     for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?
     //put selected node ids in array
-    for (i = 0; i<num_peers; i++) nodeids[i] = (neighbours+i);
+    for (i = 0; i<num_peers; i++) nodeids[i] = neighbours[i];//(neighbours+i);
     //now choose what to choose from whom
     selectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request,        //in
                      selectedpeers, &selectedpeers_len,       //out, inout
@@ -869,7 +888,6 @@ void send_chunk_request()
 
   }
   chunkID_set_free(request_cset);
-/*  }*/
   return;
 }
 
@@ -898,13 +916,20 @@ void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_se
   transaction_reg_accept(trans_id, destid);
   dprintf("Received a request from %s, complying...\n",node_addr_tr(destid));
 
+  //if an empty request, answer with bitmap
+  if(cset_send_size==0){
+    send_bmap(destid);
+  }
+
   //send the chunks if we stil have them
 
   for (i = 0, d = 0; i < cset_send_size && d < max_deliver; i++){
     chunkid = chunkID_set_get_chunk(cset_to_send, i);
     c = cb_get_chunk(cb, chunkid);
     if (!c) {	// we should have the chunk
-      dprintf("%s asked for chunk %d we do not own anymore\n", node_addr_tr(destid), chunkid);
+      dprintf("%s asked for chunk %d we do not own anymore, sendinm our bitmap...\n", node_addr_tr(destid), chunkid);
+      //send it our bitmap...
+      send_bmap(destid);
       continue;
     }
     if (!dest || needs(dest, chunkid)) {	//he should not have it, but checking doesn't hurt.

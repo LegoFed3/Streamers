@@ -28,4 +28,9 @@ int get_cb_size();
 int get_chunks_per_sec();
 double get_capacity();
 
+#define MODE_PUSH 0
+#define MODE_PULL 1
+#define PULL_LATEST 0
+#define PULL_EARLIEST 1
+
 #endif //STREAMER_H

@@ -115,10 +115,11 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
 void request_received(const struct nodeID *fromid, struct chunkID_set *cset, int max_deliver, uint16_t trans_id) {
     //Do we know him?
     struct peer *from = nodeid_to_peer(fromid,0);
-    dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
+    dprintf("The peer %s requests %d chunks, max deliver %d.\n", node_addr_tr(fromid), chunkID_set_size(cset), max_deliver);
     if(from){
         //if so, handle his request
         send_requested_chunks(fromid, cset, max_deliver, trans_id);
+        //TODO@fed3: should we unconditionally offerthem all??
     }
 }
 
