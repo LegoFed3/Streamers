@@ -1,8 +1,22 @@
 /*
- *  Copyright (c) 2010 Luca Abeni
- *  Copyright (c) 2010 Csaba Kiraly
+ * Copyright (c) 2010-2011 Luca Abeni
+ * Copyright (c) 2010-2011 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
+ *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 #include <sys/time.h>
 #include <unistd.h>
@@ -20,6 +34,7 @@
 #include "streaming.h"
 #include "topology.h"
 #include "loop.h"
+#include "node_addr.h"
 
 #define BUFFSIZE 512 * 1024
 #define FDSSIZE 16
@@ -70,7 +85,7 @@ static void *source_receive(void *dummy)
         pthread_mutex_unlock(&topology_mutex);
         break;
       case MSG_TYPE_CHUNK:
-        fprintf(stderr, "Some dumb peer pushed a chunk to me! peer:%s\n",node_addr(remote));
+        fprintf(stderr, "Some dumb peer pushed a chunk to me! peer:%s\n",node_addr_tr(remote));
         break;
       case MSG_TYPE_SIGNALLING:
         pthread_mutex_lock(&topology_mutex);
@@ -99,7 +114,7 @@ static void *receive(void *dummy)
       nodeid_free(remote);
       continue;
     }
-    dprintf("Received message (%d) from %s\n", buff[0], node_addr(remote));
+    dprintf("Received message (%d) from %s\n", buff[0], node_addr_tr(remote));
     switch (buff[0] /* Message Type */) {
       case MSG_TYPE_TMAN:
       case MSG_TYPE_STREAMER_TOPOLOGY:

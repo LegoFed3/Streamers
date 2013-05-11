@@ -1,7 +1,21 @@
 /*
- *  Copyright (c) 2010 Csaba Kiraly
+ * Copyright (c) 2010-2011 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
+ *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 #include <stdio.h>
 #include <stdint.h>
@@ -20,6 +34,7 @@
 #include "measures.h"
 #include "grapes_msg_types.h"
 #include "streamer.h"
+#include "node_addr.h"
 
 struct timeval print_tdiff = {3600, 0};
 struct timeval tstartdiff = {60, 0};
@@ -89,7 +104,7 @@ void print_measure(const char *name, double value)
   if (my_addr != get_my_addr()) {
     if (my_addr) nodeid_free(my_addr);
     my_addr = nodeid_dup(get_my_addr());
-    my_addr_str = strdup(node_addr(my_addr));
+    my_addr_str = strdup(node_addr_tr(my_addr));
   }
 
   fprintf(stderr,"abouttopublish,%s,,,%s,%f,,,%f\n", my_addr_str, name, value, tdiff_sec(&tnext, &tstart));

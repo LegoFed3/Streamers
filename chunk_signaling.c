@@ -1,9 +1,24 @@
 /*
- *  Copyright (c) 2009 Alessandro Russo
- *  Copyright (c) 2009 Csaba Kiraly
+ * Copyright (c) 2009 Alessandro Russo
+ * Copyright (c) 2009 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
  *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+/*
  * Chunk Signaling API - Higher Abstraction
  *
  * The Chunk Signaling HA provides a set of primitives for chunks signaling negotiation with other peers, in order to collect information for the effective chunk exchange with other peers. <br>
@@ -29,12 +44,13 @@
 #include "topology.h"
 #include "ratecontrol.h"
 #include "dbg.h"
+#include "node_addr.h"
 
 static bool neigh_on_sign_recv = false;
 
 void ack_received(const struct nodeID *fromid, struct chunkID_set *cset, int max_deliver, uint16_t trans_id) {
   struct peer *from = nodeid_to_peer(fromid,0);   //verify that we have really sent, 0 at least garantees that we've known the peer before
-  dprintf("The peer %s acked our chunk, max deliver %d, trans_id %d.\n", node_addr(fromid), max_deliver, trans_id);
+  dprintf("The peer %s acked our chunk, max deliver %d, trans_id %d.\n", node_addr_tr(fromid), max_deliver, trans_id);
 
   if (from) {
     chunkID_set_clear(from->bmap,0);	//TODO: some better solution might be needed to keep info about chunks we sent in flight.
@@ -50,8 +66,8 @@ void bmap_received(const struct nodeID *fromid, const struct nodeID *ownerid, st
   if (nodeid_equal(fromid, ownerid)) {
     owner = nodeid_to_peer(ownerid, neigh_on_sign_recv);
   } else {
-    dprintf("%s might be behind ",node_addr(ownerid));
-    dprintf("NAT:%s\n",node_addr(fromid));
+    dprintf("%s might be behind ",node_addr_tr(ownerid));
+    dprintf("NAT:%s\n",node_addr_tr(fromid));
     owner = nodeid_to_peer(fromid, neigh_on_sign_recv);
   }
   
@@ -67,7 +83,7 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
   struct chunkID_set *cset_acc;
 
   struct peer *from = nodeid_to_peer(fromid, neigh_on_sign_recv);
-  dprintf("The peer %s offers %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
+  dprintf("The peer %s offers %d chunks, max deliver %d.\n", node_addr_tr(fromid), chunkID_set_size(cset), max_deliver);
 
   if (from) {
     //register these chunks in the buffermap. Warning: this should be changed when offers become selective.
@@ -80,7 +96,7 @@ void offer_received(const struct nodeID *fromid, struct chunkID_set *cset, int m
     cset_acc = get_chunks_to_accept(fromid, cset, max_deliver, trans_id);
 
     //send accept message
-    dprintf("\t accept %d chunks from peer %s, trans_id %d\n", chunkID_set_size(cset_acc), node_addr(fromid), trans_id);
+    dprintf("\t accept %d chunks from peer %s, trans_id %d\n", chunkID_set_size(cset_acc), node_addr_tr(fromid), trans_id);
     acceptChunks(fromid, cset_acc, trans_id);
 
     chunkID_set_free(cset_acc);
@@ -109,7 +125,7 @@ void request_received(const struct nodeID *fromid, struct chunkID_set *cset, int
 void accept_received(const struct nodeID *fromid, struct chunkID_set *cset, int max_deliver, uint16_t trans_id) {
   struct peer *from = nodeid_to_peer(fromid,0);   //verify that we have really offered, 0 at least garantees that we've known the peer before
 
-  dprintf("The peer %s accepted our offer for %d chunks, max deliver %d.\n", node_addr(fromid), chunkID_set_size(cset), max_deliver);
+  dprintf("The peer %s accepted our offer for %d chunks, max deliver %d.\n", node_addr_tr(fromid), chunkID_set_size(cset), max_deliver);
 
   if (from) {
     gettimeofday(&from->bmap_timestamp, NULL);

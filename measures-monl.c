@@ -1,7 +1,21 @@
 /*
- *  Copyright (c) 2010 Csaba Kiraly
+ * Copyright (c) 2010-2011 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
+ *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 #include <math.h>
 #ifndef NAN	//NAN is missing in some old math.h versions
@@ -19,6 +33,7 @@
 #include "channel.h"
 #include "dbg.h"
 #include "measures.h"
+#include "node_addr.h"
 
 #define PEER_PUBLISH_INTERVAL 10 //in seconds
 #define P2P_PUBLISH_INTERVAL 60 //in seconds
@@ -267,7 +282,7 @@ void add_measures(struct nodeID *id)
 //	enum stat_types stsum[] = {SUM};
 	enum stat_types stsumwinsumrate[] = {SUM, PERIOD_SUM, WIN_SUM, RATE};
 
-	dprintf("adding measures to %s\n",node_addr(id));
+	dprintf("adding measures to %s\n",node_addr_tr(id));
 
 	/* HopCount */
 	// number of hops at IP level
@@ -282,7 +297,7 @@ void add_measures(struct nodeID *id)
 	/* Loss */
        id->mhs[j] = monCreateMeasure(SEQWIN, PACKET | IN_BAND);
        start_measure(id->mhs[j++], 0, NULL, NULL, 0, id->addr, MSG_TYPE_CHUNK);
-       id->mhs[j] = monCreateMeasure(LOSS, PACKET | IN_BAND);
+       id->mhs[j] = monCreateMeasure(LOSS, PACKET | IN_BAND | REMOTE_RESULTS);
        start_measure(id->mhs[j++], P2P_PUBLISH_INTERVAL, "LossRate", stwinavg, sizeof(stwinavg)/sizeof(enum stat_types), id->addr, MSG_TYPE_CHUNK);	//LossRate_avg [probability 0..1] LossRate_rate [lost_pkts/sec]
 
        /* RX,TX volume in bytes (only chunks) */
@@ -331,7 +346,7 @@ void add_measures(struct nodeID *id)
 */
 void delete_measures(struct nodeID *id)
 {
-	dprintf("deleting measures from %s\n",node_addr(id));
+	dprintf("deleting measures from %s\n",node_addr_tr(id));
 	while(id->n_mhs) {
 		monDestroyMeasure(id->mhs[--(id->n_mhs)]);
 	}
@@ -383,6 +398,13 @@ double get_average_rtt(struct nodeID **ids, int len){
 */
 double get_lossrate(struct nodeID *id){
 	return get_measure(id, 3, WIN_AVG);
+}
+
+/*
+ * loss ratio from a given peer as 0..1
+*/
+double get_transmitter_lossrate(struct nodeID *id){
+	return (monRetrieveResultById(id->addr, MSG_TYPE_CHUNK, PACKET | IN_BAND | REMOTE, LOSS, WIN_AVG));
 }
 
 /*

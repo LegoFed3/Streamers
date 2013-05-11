@@ -1,8 +1,22 @@
 /*
- *  Copyright (c) 2010 Luca Abeni
- *  Copyright (c) 2010 Csaba Kiraly
+ * Copyright (c) 2010-2011 Luca Abeni
+ * Copyright (c) 2010-2011 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
+ *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 #include <stdlib.h>
 #include <stdint.h>
@@ -33,6 +47,7 @@
 #include "topology.h"
 #include "measures.h"
 #include "streamer.h"
+#include "node_addr.h"
 #include "version.h"
 
 #ifndef EXTRAVERSION
@@ -386,7 +401,7 @@ static struct nodeID *init(void)
     return NULL;
   }
   free(my_addr);
-  fprintf(stderr, "My network ID is: %s\n", node_addr(myID));
+  fprintf(stderr, "My network ID is: %s\n", node_addr_tr(myID));
 
   // For communication with the GUI
   // chunker_player needs to know the network ID in order
@@ -394,12 +409,12 @@ static struct nodeID *init(void)
   FILE* fp=fopen("NetworkID","w");
   if(fp)
   {
-    fprintf(fp,"%s\n",node_addr(myID));
+    fprintf(fp,"%s\n",node_addr_tr(myID));
     fprintf(fp,"IDEnd");
     fclose(fp);
   }
 
-  init_rand(node_addr(myID));
+  init_rand(node_addr_tr(myID));
 
   topologyInit(myID, topo_config);
 

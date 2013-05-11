@@ -1,5 +1,7 @@
 include utils.mak
 include config.mak
+   
+all: exectarget
 
 #save external LDLIBS
 LDLIBS_IN := $(LDLIBS)
@@ -23,7 +25,9 @@ STATIC ?= 0
 
 CPPFLAGS = -I$(NAPA)/include
 CPPFLAGS += -I$(GRAPES)/include
+
 CPPFLAGS += -Itransition
+OBJS += transition/node_addr.o
 
 ifdef GPROF
 CFLAGS += -pg -O0
@@ -52,7 +56,10 @@ CFLAGS += -pthread
 LDFLAGS += -pthread
 LDLIBS += $(call ld-option, -lz)
 endif
-ifdef ML
+
+NET_HELPER ?= ml
+ifeq ($(NET_HELPER), ml)
+OBJS += net_helper-ml.o
 LDFLAGS += -L$(NAPA)/ml -L$(LIBEVENT_DIR)/lib
 LDLIBS += -lml -lm
 LIBFILES += $(NAPA)/ml/libml.a
@@ -76,6 +83,14 @@ endif
 
 LDLIBS += $(LIBEVENT)
 LDLIBS += $(call ld-option, -lrt)
+endif
+
+ifeq ($(NET_HELPER), udp)
+OBJS += $(GRAPES)/src/net_helper-udp.o
+endif
+
+ifeq ($(NET_HELPER), tcp)
+OBJS += $(GRAPES)/src/net_helper-tcp.o
 endif
 
 OBJS += streaming.o
@@ -125,11 +140,6 @@ LDLIBS += -lm
 LDLIBS += $(call ld-option, -lz)
 LDLIBS += $(call ld-option, -lbz2)
 LDLIBS += $(call ld-option, -lva)
-ifdef X264_DIR
-CPPFLAGS += -I$(X264_DIR) -I$(X264_DIR)/include
-LDFLAGS += -L$(X264_DIR) -L$(X264_DIR)/lib
-LDLIBS += -lx264
-endif
 endif
 endif
 ifeq ($(IO), chunkstream)
@@ -139,9 +149,9 @@ OBJS += input-chunkstream.o output-chunkstream.o
 endif
 
 EXECTARGET = streamer
-ifdef ML
-EXECTARGET := $(EXECTARGET)-ml
-endif
+
+EXECTARGET := $(EXECTARGET)-$(NET_HELPER)
+
 ifdef MONL
 EXECTARGET := $(EXECTARGET)-monl
 endif
@@ -173,8 +183,8 @@ ifdef RELEASE
 EXECTARGET := $(EXECTARGET)-$(RELEASE)
 endif
 
-ifeq ($(HOSTARCH), mingw32)
-LDLIBS += -lmsvcrt -lwsock32 -lws2_32 -liberty
+ifneq (,$(findstring mingw32,$(HOSTARCH)))
+LDLIBS += -lmsvcrt -lwsock32 -lws2_32
 EXECTARGET := $(EXECTARGET).exe
 else
 LDLIBS += $(LIBRT)
@@ -185,16 +195,13 @@ LDLIBS += $(LDLIBS_IN)
 #lm might be needed again at the end
 LDLIBS += $(call ld-option, -lm)
 
-.PHONY: clean distclean
+.PHONY: clean distclean exectarget
 
-all: $(EXECTARGET)
+exectarget: $(EXECTARGET)
 
 $(EXECTARGET): $(LIBFILES)
-ifndef ML
-$(EXECTARGET): $(OBJS) $(GRAPES)/src/net_helper.o $(EXECTARGET).o
-else
-$(EXECTARGET): $(OBJS) $(GRAPES)/src/net_helper-ml.o $(EXECTARGET).o
-endif
+
+$(EXECTARGET): $(OBJS)  $(EXECTARGET).o
 	$(LINKER) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) $(LDFLAGSPOST) -o $@
 
 $(EXECTARGET).o: streamer.o
@@ -215,16 +222,8 @@ ffmpeg:
 	(wget http://ffmpeg.org/releases/ffmpeg-checkout-snapshot.tar.bz2; tar xjf ffmpeg-checkout-snapshot.tar.bz2; mv ffmpeg-checkout-20* ffmpeg) || svn checkout svn://svn.ffmpeg.org/ffmpeg/trunk ffmpeg
 	cd ffmpeg; ./configure
 
-prepare: $(GRAPES) $(FFSRC)
-	$(MAKE) -C $(GRAPES) -f Makefile
-ifdef ML
-	cd $(NAPA); ./autogen.sh; $(MAKE)
-endif
-	$(MAKE) -C $(FFSRC)
-
 clean:
 	rm -f streamer-*
-	rm -f $(GRAPES)/src/net_helper-ml.o
 	rm -f $(GRAPES)/src/net_helper.o
 	rm -f *.o
 	rm -f Chunkiser/*.o

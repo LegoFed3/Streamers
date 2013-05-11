@@ -1,8 +1,22 @@
 /*
- *  Copyright (c) 2010 Luca Abeni
- *  Copyright (c) 2010 Csaba Kiraly
+ * Copyright (c) 2010-2011 Luca Abeni
+ * Copyright (c) 2010-2011 Csaba Kiraly
  *
- *  This is free software; see gpl-3.0.txt
+ * This file is part of PeerStreamer.
+ *
+ * PeerStreamer is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * PeerStreamer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with PeerStreamer.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 #include <sys/types.h>
 #ifndef _WIN32
@@ -53,6 +67,7 @@ char *iface_addr(const char *iface)
 
     return strdup(buff);
 #else
+    if(iface != NULL && strcmp(iface, "lo") == 0) return "127.0.0.1";
     if(iface != NULL && inet_addr(iface) != INADDR_NONE) return strdup(iface);
     return default_ip_addr();
 #endif
