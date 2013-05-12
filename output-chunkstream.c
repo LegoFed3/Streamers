@@ -175,5 +175,9 @@ void chunk_write(struct output_stream *out, const struct chunk *c)
 }
 
 void consume_chunk(){
-    fprintf(stderr,"ERROR: chunkstream support for fixed playout delay NYI!!!");
+    fprintf(stderr,"ERROR: chunkstream support for fixed playout delay NYI!!!\n");
+}
+
+void input_error(){
+    fprintf(stderr,"ERROR: input error!!!\n");
 }

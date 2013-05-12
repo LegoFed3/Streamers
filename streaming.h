@@ -41,4 +41,6 @@ void send_bmap(struct nodeID *to);
 void send_chunk_request();
 void send_requested_chunks(struct nodeID *destid, struct chunkID_set *cset_to_send, int max_deliver, uint16_t trans_id);
 
+void input_error();
+
 #endif	/* STREAMING_H */

@@ -82,6 +82,7 @@ static int cb_size;
 static int offer_per_tick = 1;	//N_p parameter of POLITO
 static int request_per_tick = 5; //how many chunks can be requested per tick
 
+extern int last_chunk;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);

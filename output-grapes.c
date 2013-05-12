@@ -247,3 +247,7 @@ void output_deliver(const struct chunk *c)
     memcpy(buff[c->id % buff_size].c.data, c->data, c->size);
   }
 }
+
+void input_error(){
+    fprintf(stderr, "Last Chunk Id %d\n", last_chunk);
+}
