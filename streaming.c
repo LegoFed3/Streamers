@@ -380,6 +380,7 @@ struct chunk *generated_chunk(suseconds_t *delta)
   *delta = input_get(input, c);
   if (*delta < 0) {
     fprintf(stderr, "Error in input!\n");
+    input_error();
     exit(-1);
   }
   if (c->data == NULL) {
