@@ -380,7 +380,6 @@ struct chunk *generated_chunk(suseconds_t *delta)
   *delta = input_get(input, c);
   if (*delta < 0) {
     fprintf(stderr, "Error in input!\n");
-    input_error();
     exit(-1);
   }
   if (c->data == NULL) {
@@ -388,6 +387,7 @@ struct chunk *generated_chunk(suseconds_t *delta)
     return NULL;
   }
   dprintf("Generated chunk %d of %d bytes\n",c->id, c->size);
+  fprintf(stderr,"GENERATE_REPORT: generated chunk of id=%d\n",c->id);
   chunk_attributes_fill(c);
   return c;
 }
