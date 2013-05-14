@@ -249,5 +249,5 @@ void output_deliver(const struct chunk *c)
 }
 
 void input_error(){
-    fprintf(stderr, "Last Chunk Id %d\n", last_chunk);
+    fprintf(stderr, "Last Chunk Id %d\n", next_chunk-1);
 }
