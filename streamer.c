@@ -251,7 +251,7 @@ static void cmdline_parse(int argc, char *argv[])
         else if( strcmp( "topo_bidir", long_options[option_index].name ) == 0 ) { topo_in = true; topo_out = true; }
         else if( strcmp( "topo_keep_best", long_options[option_index].name ) == 0 ) { topo_keep_best = true; }
         else if( strcmp( "topo_add_best", long_options[option_index].name ) == 0 ) { topo_add_best = true; }
-        else if( strcmp( "autotune_period", long_options[option_index].name ) == 0 ) { autotune_period = (bool) atoi(optarg); }
+        if( strcmp( "autotune_period", long_options[option_index].name ) == 0 ) { autotune_period = (bool) atoi(optarg); }
         if( strcmp( "fixed_playout_delay", long_options[option_index].name ) == 0 ) { fixed_playout_delay = atoi(optarg); }
         if( strcmp( "pull_earliest", long_options[option_index].name ) == 0 ) { opmode=MODE_PULL;pullmode=PULL_EARLIEST; }
         if( strcmp( "pull_latest", long_options[option_index].name ) == 0 ) { opmode=MODE_PULL;pullmode=PULL_LATEST;

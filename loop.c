@@ -86,8 +86,7 @@ void loop(struct nodeID *s, int csize, int buff_size)
   while (!done) {
     int len, res;
     struct timeval tv,tc;
-
-    if(tconsume.tv_sec >= 0 && tconsume.tv_usec >= 0){
+    if(tconsume.tv_sec >= 0 && tconsume.tv_usec >= 0){/*set in streamer.c if mode requires it*/
       tout_init(&tc, &tconsume);
       if(tc.tv_sec <= 0 && tc.tv_usec <= 0){
         struct timeval tmp;
