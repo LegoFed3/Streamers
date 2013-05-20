@@ -52,7 +52,7 @@ struct timeval period = {0, 500000};
 
 //fixed playout delay stuff
 #include "output.h"
-struct timeval tconsume = {-1, -1};
+struct timeval tconsume = {-1, -1},consume_period;
 
 int opmode=MODE_PUSH;
 
@@ -79,6 +79,9 @@ void loop(struct nodeID *s, int csize, int buff_size)
   gettimeofday(&tnext, NULL);
   period.tv_sec = csize / 1000000;
   period.tv_usec = csize % 1000000;
+  //make a copy to allow tuning of main period
+  consume_period.tv_sec = period.tv_sec;
+  consume_period.tv_usec = period.tv_usec;
   
   peers_init();
   stream_init(buff_size, s);
@@ -91,7 +94,7 @@ void loop(struct nodeID *s, int csize, int buff_size)
       if(tc.tv_sec <= 0 && tc.tv_usec <= 0){
         struct timeval tmp;
         consume_chunk();
-        timeradd(&tconsume,&period,&tmp);
+        timeradd(&tconsume,&consume_period,&tmp);
         tconsume=tmp;
       }
     }

@@ -25,11 +25,14 @@
 #include "transaction.h"
 #include "measures.h"
 #include "dbg.h"
+#include "streamer.h"
 
 #define MAX(A,B)    ((A)>(B) ? (A) : (B))
 #define MIN(A,B)    ((A)<(B) ? (A) : (B))
 
 bool autotune_period = true;
+extern int opmode;
+
 
 static double offer_accept = 1;
 static double acc_to_ack = 0;
@@ -89,22 +92,27 @@ static void update_period()
   }
   period_last_updated = t_now;
 
-  d_offer_accept = offer_accept - offer_accept_min;
-  d_acc_to_ack = (acc_to_ack - acc_to_ack_max) / acc_to_ack_max;
-  d_period = log(get_period()) - log(period_initial);
 
-  if (d_period < 0) { // we are fast
-    if (d_offer_accept > 0 && d_acc_to_ack < 0) { // be faster
-      set_period(MAX(PERIOD_MIN, get_period() / (1.0 + (period_change_rate_down * dt / 1e6))));
-    } else { //slow down towards normal speed
-      set_period(MIN(PERIOD_MAX, get_period() * (1.0 + (period_change_rate_up * (1 + fabs(d_period < 0 ? d_period : 0) ) * dt / 1e6))));
+  if(opmode == MODE_PUSH){//for push
+    d_offer_accept = offer_accept - offer_accept_min;
+    d_acc_to_ack = (acc_to_ack - acc_to_ack_max) / acc_to_ack_max;
+    d_period = log(get_period()) - log(period_initial);
+
+    if (d_period < 0) { // we are fast
+      if (d_offer_accept > 0 && d_acc_to_ack < 0) { // be faster
+        set_period(MAX(PERIOD_MIN, get_period() / (1.0 + (period_change_rate_down * dt / 1e6))));
+      } else { //slow down towards normal speed
+        set_period(MIN(PERIOD_MAX, get_period() * (1.0 + (period_change_rate_up * (1 + fabs(d_period < 0 ? d_period : 0) ) * dt / 1e6))));
+      }
+    } else { // we are slow
+      if (d_acc_to_ack > 0) { // slow down even more
+        set_period(MIN(PERIOD_MAX, get_period() * (1.0 + (period_change_rate_up * dt / 1e6))));
+      } else { //recover speed
+        set_period(MAX(PERIOD_MIN, get_period() / (1.0 + (period_change_rate_down * (1 + fabs(d_period > 0 ? d_period : 0) ) * dt / 1e6))));
+      }
     }
-  } else { // we are slow
-    if (d_acc_to_ack > 0) { // slow down even more
-      set_period(MIN(PERIOD_MAX, get_period() * (1.0 + (period_change_rate_up * dt / 1e6))));
-    } else { //recover speed
-      set_period(MAX(PERIOD_MIN, get_period() / (1.0 + (period_change_rate_down * (1 + fabs(d_period > 0 ? d_period : 0) ) * dt / 1e6))));
-    }
+  } else {//for pull
+    //NYI
   }
 }
 
