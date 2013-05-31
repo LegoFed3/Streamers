@@ -80,7 +80,7 @@ static struct input_desc *input;
 static int cb_size;
 
 static int offer_per_tick = 1;	//N_p parameter of POLITO
-static int request_per_tick = 5; //how many chunks can be requested per tick
+static int request_per_tick = 5; //how many chunks can be requested per tick, equal to max offer for adjacent chunks
 
 extern int last_chunk;
 
@@ -743,47 +743,47 @@ void send_chunk()
   * @param num_peers an int containing the size of the previous array;
   * @return a pointer to a chunkID_set containing the chunks to request from other nodes;
   */
-struct chunkID_set *compose_request_cset(int max_request_num, struct peer **neighbours, int num_peers)
-{
-  struct chunkID_set *request_cset, *my_bmap;
-  int i, node_chunks_num, j, curr_chunkID, curr_requests=0,target;
+/*struct chunkID_set *compose_request_cset(int max_request_num, struct peer **neighbours, int num_peers)*/
+/*{*/
+/*  struct chunkID_set *request_cset, *my_bmap;*/
+/*  int i, node_chunks_num, j, curr_chunkID, curr_requests=0,target;*/
 
-  request_cset = chunkID_set_init("size=0");
-  my_bmap = cb_to_bmap(cb);
+/*  request_cset = chunkID_set_init("size=0");*/
+/*  my_bmap = cb_to_bmap(cb);*/
 
-  //now look for available chunks in neighbours
-  for (i=0;i<num_peers;i++){
-    //neighbours[i].bmap is current bmap of neighbour we are checking against, type Chunkid_set
-    if(neighbours[i]->bmap){
-      node_chunks_num=chunkID_set_size(neighbours[i]->bmap);
-    }else{
-      continue; //don't know what it has...why??
-    }
+/*  //now look for available chunks in neighbours*/
+/*  for (i=0;i<num_peers;i++){*/
+/*    //neighbours[i].bmap is current bmap of neighbour we are checking against, type Chunkid_set*/
+/*    if(neighbours[i]->bmap){*/
+/*      node_chunks_num=chunkID_set_size(neighbours[i]->bmap);*/
+/*    }else{*/
+/*      continue; //don't know what it has...why??*/
+/*    }*/
 
-    if(pullmode==PULL_EARLIEST){
-      j=0;target=node_chunks_num-1;
-    }else if(pullmode==PULL_LATEST){
-      j=node_chunks_num-1;target=0;
-    }
+/*    if(pullmode==PULL_EARLIEST){*/
+/*      j=0;target=node_chunks_num-1;*/
+/*    }else if(pullmode==PULL_LATEST){*/
+/*      j=node_chunks_num-1;target=0;*/
+/*    }*/
 
-    while (j != target && node_chunks_num != 0){
-      curr_chunkID=chunkID_set_get_chunk(neighbours[i]->bmap, j);
-      if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
-        //found chunk I'm missing, add it to those to request
-        if (chunkID_set_add_chunk(request_cset,curr_chunkID)<0){
-          //ops, something very bad happened here...
-        }
-        if (++curr_requests>=max_request_num){
-          //enough requests, abort
-          return request_cset;
-        }
-      }
-    if(pullmode==PULL_EARLIEST){ j++; }
-    else if(pullmode==PULL_LATEST){ j--; }
-    }
-  }
-  return request_cset;
-}
+/*    while (j != target && node_chunks_num != 0){*/
+/*      curr_chunkID=chunkID_set_get_chunk(neighbours[i]->bmap, j);*/
+/*      if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {*/
+/*        //found chunk I'm missing, add it to those to request*/
+/*        if (chunkID_set_add_chunk(request_cset,curr_chunkID)<0){*/
+/*          //ops, something very bad happened here...*/
+/*        }*/
+/*        if (++curr_requests>=max_request_num){*/
+/*          //enough requests, abort*/
+/*          return request_cset;*/
+/*        }*/
+/*      }*/
+/*    if(pullmode==PULL_EARLIEST){ j++; }*/
+/*    else if(pullmode==PULL_LATEST){ j--; }*/
+/*    }*/
+/*  }*/
+/*  return request_cset;*/
+/*}*/
 
  /**
   * @brief how many peers to pull from
@@ -792,10 +792,62 @@ struct chunkID_set *compose_request_cset(int max_request_num, struct peer **neig
   * 
   * @return an int showing the maximun numbers of request the node sends per tick;
   */
-int request_peer_count()
-{
-  return request_per_tick;
+/*int request_peer_count()*/
+/*{*/
+/*  return request_per_tick;*/
+/*}*/
+
+int compose_request_csets(int max_request_num, struct peer **neighbours, struct chunkID_set **csets_to_request, int num_peers){
+  struct chunkID_set *my_bmap;
+  int num_selected_chunks=0,i,node_chunks_num,j;
+  int target,curr_chunkID,found_a_chunk;
+
+  for (i=0;i<num_peers;i++){
+    csets_to_request=chunkID_set_init("size=0");
+  }
+  my_bmap = cb_to_bmap(cb);
+
+  found_a_chunk=1;
+  while (num_selected_chunks < max_request_num && found_a_chunk){//second check to stop when no new chunks are found
+    found_a_chunk=0;
+    for (i=0;i<num_peers;i++){
+      if(neighbours[i]->bmap){
+        node_chunks_num=chunkID_set_size(neighbours[i]->bmap);
+      }else{
+        continue; //don't know what it has...why??
+      }
+
+      if(pullmode==PULL_EARLIEST){
+        j=0;target=node_chunks_num-1;
+      }else if(pullmode==PULL_LATEST){
+        j=node_chunks_num-1;target=0;
+      }
+
+      while (j != target && node_chunks_num != 0){//second check is to skip empty neighbours
+        curr_chunkID=chunkID_set_get_chunk(neighbours[i]->bmap, j);
+        if (chunkID_set_check(my_bmap,curr_chunkID) < 0) {
+          //found chunk I'm missing, add it to those to request
+          if (chunkID_set_add_chunk(csets_to_request[i],curr_chunkID)<0){
+            //ops, something very bad happened here...
+          }
+          num_selected_chunks++;
+          found_a_chunk=1;
+          //if found enough chunks, end
+          if (num_selected_chunks == max_request_num){
+            return num_selected_chunks;
+          }
+          //look into next neighbour...
+          j=target;
+          continue;
+        }
+        if(pullmode==PULL_EARLIEST){ j++; }
+        else if(pullmode==PULL_LATEST){ j--; }
+      }
+    }
+  }
+  return num_selected_chunks;
 }
+
 
  /**
   * @brief sends requests for missing chunks
@@ -805,10 +857,15 @@ int request_peer_count()
   */
 void send_chunk_request()
 {
+/*
+TODO@fed3: rewrite as follows: look for missing chunk in neighbours, up to some value,
+then ask it and put it's id into a "requested" set... until you finish neighbours
+or reach value
+*/
   struct peer **neighbours;
   struct peerset *pset;
   int num_peers, num_chunks_to_request;
-  struct chunkID_set *request_cset;
+/*  struct chunkID_set *request_cset;*/
 
   //select peer to request from
   pset = get_peers();
@@ -816,81 +873,112 @@ void send_chunk_request()
   num_peers = peerset_size(pset);
   if (num_peers==0) return; //nobody to contact
 
-  //select chunk to request
-  request_cset = compose_request_cset(request_per_tick,neighbours,num_peers);
-  num_chunks_to_request = chunkID_set_size(request_cset);
-
-  if (num_chunks_to_request<=0){
-    //request something at random, maybe we will get it, o.w. we will have a fresher bmap
-    int i,curr_chunkID,transid;
-    struct chunkID_set  *my_bmap;
-    my_bmap = cb_to_bmap(cb);
-
-    for(i=chunkID_set_size(my_bmap)-1;i>=0;i--){
-      curr_chunkID=chunkID_set_get_chunk(my_bmap, i);
-      if(chunkID_set_check(my_bmap,curr_chunkID) < 0){
-        chunkID_set_add_chunk(request_cset,curr_chunkID);
-        break;
-      }
-    }
-    //now curr_chunkID is one missing chunk, ask it at random
-    i=rand()%num_peers;
-    transid = transaction_create(neighbours[i]->id);
-    requestChunks(neighbours[i]->id, request_cset, 1, transid++);
-    return;
-  }
-  //match then send requests
+  //cycle neighbours to find chunks to request
   {
-    size_t selectedpeers_len = request_peer_count(); //allow for 1 chunk per peer requests
-    int i,j;
-    int chunkids[num_chunks_to_request];
-    struct peer *nodeids[num_peers];
-    struct peer *selectedpeers[selectedpeers_len];
-    bool usedselectedpeers[selectedpeers_len];
+    struct chunkID_set* csets_to_request[num_peers];
 
-    //reduce load a little bit if there are losses on the path from this guy
-    double average_lossrate = get_average_lossrate_pset(pset);
-    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss
-    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {
+    num_chunks_to_request = compose_request_csets(request_per_tick,neighbours,csets_to_request,num_peers);
+  
+  /*  //select chunk to request*/
+  /*  request_cset = compose_request_cset(request_per_tick,neighbours,num_peers);*/
+  /*  num_chunks_to_request = chunkID_set_size(request_cset);*/
+
+    if (num_chunks_to_request<=0){
+      //request something at random, maybe we will get it, o.w. we will have a fresher bmap
+      int i,curr_chunkID,transid;
+      struct chunkID_set  *my_bmap, *request_cset;
+      my_bmap = cb_to_bmap(cb);
+      request_cset=chunkID_set_init("size=0");
+
+      for(i=chunkID_set_size(my_bmap)-1;i>=0;i--){
+        curr_chunkID=chunkID_set_get_chunk(my_bmap, i);
+        if(chunkID_set_check(my_bmap,curr_chunkID) < 0){
+          chunkID_set_add_chunk(request_cset,curr_chunkID);
+          break;
+        }
+      }
+      //now curr_chunkID is one missing chunk, ask it at random
+      i=rand()%num_peers;
+      transid = transaction_create(neighbours[i]->id);
+      requestChunks(neighbours[i]->id, request_cset, 1, transid++);
+      chunkID_set_free(request_cset);
       return;
     }
 
-    if (selectedpeers_len<=0){return;}
-    //put requested chunk ids in array
-    for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?
-    //put selected node ids in array
-    for (i = 0; i<num_peers; i++) nodeids[i] = neighbours[i];//(neighbours+i);
-    //now choose what to choose from whom
-    selectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request,        //in
-                     selectedpeers, &selectedpeers_len,       //out, inout
-                     SCHED_HAS,
-                     SCHED_PEER);
-    //now have to select just one chunk for one peer.
-    //TODO: this is stupid O(n^2), better idea?
-    for (i=0;i<selectedpeers_len;i++){
-      usedselectedpeers[i]=0;
-    }
-    for (j=0;j<num_chunks_to_request;j++){
-      //we request only this chunk at a time
-      chunkID_set_clear(request_cset,1);
-      chunkID_set_add_chunk(request_cset,chunkids[j]);
-      //now choose which neighbour to ask it to
-      for(i=0;i<selectedpeers_len;i++){
-        if (usedselectedpeers[i]==0 && has(selectedpeers[i],chunkids[j])>0){
-          //THIS NODE HAS THE CHUNK, ASK IT TO IT
-          int transid = transaction_create(selectedpeers[i]->id);
-          dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, 
-                  node_addr_tr(selectedpeers[i]->id), selectedpeers[i]->cb_size);
-          requestChunks(selectedpeers[i]->id, request_cset, 1, transid++);
-          //and mark him as booked for this tick
-          usedselectedpeers[i]=1;
-          //finally, exit from this cycle
-          i=selectedpeers_len;
-        }
+    //send requests
+    int i,set_size;
+
+/*    //reduce load a little bit if there are losses on the path from this guy*/
+/*    double average_lossrate = get_average_lossrate_pset(pset);*/
+/*    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss*/
+/*    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {*/
+/*      return;*/
+/*    }*/
+
+    for (i=0;i<num_peers;i++){
+      set_size=chunkID_set_size(csets_to_request[i]);
+      if(set_size > 0){
+        //there is something to ask to this peer, send request
+        int transid = transaction_create(neighbours[i]->id);
+        dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, 
+                node_addr_tr(neighbours[i]->id), neighbours[i]->cb_size);
+        requestChunks(neighbours[i]->id, neighbours[i], set_size, transid++);
       }
+      chunkID_set_free(csets_to_request[i]);
     }
   }
-  chunkID_set_free(request_cset);
+/*  //match then send requests*/
+/*  {*/
+/*    size_t selectedpeers_len = request_peer_count(); //allow for 1 chunk per peer requests*/
+/*    int i,j;*/
+/*    int chunkids[num_chunks_to_request];*/
+/*    struct peer *nodeids[num_peers];*/
+/*    struct peer *selectedpeers[selectedpeers_len];*/
+/*    bool usedselectedpeers[selectedpeers_len];*/
+
+/*    //reduce load a little bit if there are losses on the path from this guy*/
+/*    double average_lossrate = get_average_lossrate_pset(pset);*/
+/*    average_lossrate = finite(average_lossrate) ? average_lossrate : 0;	//start agressively, assuming 0 loss*/
+/*    if (rand()/((double)RAND_MAX + 1) < 10 * average_lossrate ) {*/
+/*      return;*/
+/*    }*/
+
+/*    if (selectedpeers_len<=0){return;}*/
+/*    //put requested chunk ids in array*/
+/*    for (i = 0;i < num_chunks_to_request; i++) chunkids[i] = chunkID_set_get_chunk(request_cset,i);//[num_chunks_to_request - 1 - i]?*/
+/*    //put selected node ids in array*/
+/*    for (i = 0; i<num_peers; i++) nodeids[i] = neighbours[i];//(neighbours+i);*/
+/*    //now choose what to choose from whom*/
+/*    selectPeersForChunks(SCHED_WEIGHTING, nodeids, num_peers, chunkids, num_chunks_to_request,        //in*/
+/*                     selectedpeers, &selectedpeers_len,       //out, inout*/
+/*                     SCHED_HAS,*/
+/*                     SCHED_PEER);*/
+/*    //now have to select just one chunk for one peer.*/
+/*    //TODO: this is stupid O(n^2), better idea?*/
+/*    for (i=0;i<selectedpeers_len;i++){*/
+/*      usedselectedpeers[i]=0;*/
+/*    }*/
+/*    for (j=0;j<num_chunks_to_request;j++){*/
+/*      //we request only this chunk at a time*/
+/*      chunkID_set_clear(request_cset,1);*/
+/*      chunkID_set_add_chunk(request_cset,chunkids[j]);*/
+/*      //now choose which neighbour to ask it to*/
+/*      for(i=0;i<selectedpeers_len;i++){*/
+/*        if (usedselectedpeers[i]==0 && has(selectedpeers[i],chunkids[j])>0){*/
+/*          //THIS NODE HAS THE CHUNK, ASK IT TO IT*/
+/*          int transid = transaction_create(selectedpeers[i]->id);*/
+/*          dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, */
+/*                  node_addr_tr(selectedpeers[i]->id), selectedpeers[i]->cb_size);*/
+/*          requestChunks(selectedpeers[i]->id, request_cset, 1, transid++);*/
+/*          //and mark him as booked for this tick*/
+/*          usedselectedpeers[i]=1;*/
+/*          //finally, exit from this cycle*/
+/*          i=selectedpeers_len;*/
+/*        }*/
+/*      }*/
+/*    }*/
+/*  }*/
+/*  chunkID_set_free(request_cset);*/
   return;
 }
 
