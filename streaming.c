@@ -803,7 +803,7 @@ int compose_request_csets(int max_request_num, struct peer **neighbours, struct 
   int target,curr_chunkID,found_a_chunk;
 
   for (i=0;i<num_peers;i++){
-    csets_to_request=chunkID_set_init("size=0");
+    csets_to_request[i]=chunkID_set_init("size=0");
   }
   my_bmap = cb_to_bmap(cb);
 
@@ -857,11 +857,6 @@ int compose_request_csets(int max_request_num, struct peer **neighbours, struct 
   */
 void send_chunk_request()
 {
-/*
-TODO@fed3: rewrite as follows: look for missing chunk in neighbours, up to some value,
-then ask it and put it's id into a "requested" set... until you finish neighbours
-or reach value
-*/
   struct peer **neighbours;
   struct peerset *pset;
   int num_peers, num_chunks_to_request;
@@ -918,6 +913,14 @@ or reach value
     for (i=0;i<num_peers;i++){
       set_size=chunkID_set_size(csets_to_request[i]);
       if(set_size > 0){
+{
+int j;
+fprintf(stderr,"DEBUG: requesting set of size %d: -",set_size);
+for (j=0;j<set_size;j++){
+fprintf(stderr,"-%d-",chunkID_set_get_chunk(csets_to_request[i],j));
+}
+fprintf(stderr,"- from node %s\n",node_addr_tr(neighbours[i]->id));
+}
         //there is something to ask to this peer, send request
         int transid = transaction_create(neighbours[i]->id);
         dprintf("\t sending request(%d) to %s, cb_size: %d\n", transid, 
