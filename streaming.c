@@ -82,7 +82,7 @@ static int cb_size;
 static int offer_per_tick = 1;	//N_p parameter of POLITO
 static int request_per_tick = 5; //how many chunks can be requested per tick
 
-extern int last_chunk;
+int num_generated_chunks=0;
 
 int _needs(struct chunkID_set *cset, int cb_size, int cid);
 int has(struct peer *n, int cid);
@@ -387,7 +387,7 @@ struct chunk *generated_chunk(suseconds_t *delta)
     return NULL;
   }
   dprintf("Generated chunk %d of %d bytes\n",c->id, c->size);
-  fprintf(stderr,"GENERATE_REPORT: generated chunk of id=%d\n",c->id);
+  fprintf(stderr,"GENERATE_REPORT: generated chunk number %d\n",++num_generated_chunks);
   chunk_attributes_fill(c);
   return c;
 }
@@ -814,6 +814,7 @@ void send_chunk_request()
   pset = get_peers();
   neighbours = peerset_get_peers(pset);
   num_peers = peerset_size(pset);
+
   if (num_peers==0) return; //nobody to contact
 
   //select chunk to request

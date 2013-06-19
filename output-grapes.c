@@ -33,7 +33,7 @@
 #include "dbg.h"
 
 int fixed_playout_delay=-1;
-struct timeval tconsume;//period,tconsume,tcnt;
+struct timeval tconsume;
 
 static int last_chunk = -1;
 static int next_chunk = -1;
@@ -44,6 +44,8 @@ extern int end_id;
 
 static char sflag = 0;
 static char eflag = 0;
+
+extern int receivedchunks;
 
 bool reorder = OUTPUT_REORDER;
 struct outbuf {
@@ -241,6 +243,12 @@ void output_deliver(const struct chunk *c)
       fprintf(stderr, "Crap!, chunkid:%d, storedid: %d\n", c->id, buff[c->id % buff_size].c.id);
       exit(-1);
     }
+    receivedchunks++;
+/*    {*/
+/*    struct timeval tlol;*/
+/*    gettimeofday(&tlol, NULL);*/
+/*    fprintf(stderr,"DEBUG: received chunk %d at time %f\n",c->id,tlol.tv_sec*1e6+tlol.tv_usec);*/
+/*    }*/
     /* We previously flushed, so we know that c->id is free */
     memcpy(&buff[c->id % buff_size].c, c, sizeof(struct chunk));
     buff[c->id % buff_size].c.data = malloc(c->size);

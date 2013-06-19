@@ -56,6 +56,8 @@ struct timeval tconsume = {-1, -1},consume_period;
 
 int opmode=MODE_PUSH;
 
+int receivedchunks=0;
+
 //calculate timeout based on tnext
 void tout_init(struct timeval *tout, const struct timeval *tnext)
 {
@@ -75,6 +77,8 @@ void loop(struct nodeID *s, int csize, int buff_size)
   static uint8_t buff[BUFFSIZE];
   int cnt = 0;
   struct timeval tnext;
+int consumedchunks=0;
+
   
   gettimeofday(&tnext, NULL);
   period.tv_sec = csize / 1000000;
@@ -89,11 +93,13 @@ void loop(struct nodeID *s, int csize, int buff_size)
   while (!done) {
     int len, res;
     struct timeval tv,tc;
-    if(tconsume.tv_sec >= 0 && tconsume.tv_usec >= 0){/*set in streamer.c if mode requires it*/
+    if(tconsume.tv_sec >= 0 && tconsume.tv_usec >= 0){/*set in output-grapes.c if at first chunk arrival if required*/
       tout_init(&tc, &tconsume);
       if(tc.tv_sec <= 0 && tc.tv_usec <= 0){
         struct timeval tmp;
         consume_chunk();
+consumedchunks++;
+fprintf(stderr,"LOL, so far consumed %d chunks out of %d\n",consumedchunks,receivedchunks);
         timeradd(&tconsume,&consume_period,&tmp);
         tconsume=tmp;
       }
@@ -165,15 +171,13 @@ void source_loop(const char *fname, struct nodeID *s, int csize, int chunks, int
   
   peers_init();
 
-if(opmode==MODE_PULL){fprintf(stderr,"\n\n\n>>>>DEBUG: using pull!!!\n\n\n");}
-
   if (source_init(fname, s, fds, FDSSIZE, buff_size) < 0) {
     fprintf(stderr,"Cannot initialize source, exiting");
     return;
   }
   while (!done) {
     int len, res;
-    struct timeval tv, *ptv;
+    struct timeval tv, *ptv,lol;
     int wait4fds[FDSSIZE], *pfds;
 
     if (fds[0] == -1) {
@@ -187,6 +191,10 @@ if(opmode==MODE_PULL){fprintf(stderr,"\n\n\n>>>>DEBUG: using pull!!!\n\n\n");}
       ptv = &tv;
     }
     res = wait4data(s, ptv, pfds);
+
+gettimeofday(&lol, NULL);
+fprintf(stderr,"DEBUG: after waiting for data, time is now %d\n",lol.tv_sec+lol.tv_usec);
+fprintf(stderr,"LOL: period is %d\n", period.tv_sec+period.tv_usec);
 
     if (res == 1) {
       struct nodeID *remote;
