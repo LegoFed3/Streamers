@@ -77,7 +77,7 @@ void loop(struct nodeID *s, int csize, int buff_size)
   static uint8_t buff[BUFFSIZE];
   int cnt = 0;
   struct timeval tnext;
-int consumedchunks=0;
+  int consumedchunks=0;
 
   
   gettimeofday(&tnext, NULL);
@@ -99,9 +99,7 @@ int consumedchunks=0;
         struct timeval tmp;
         consume_chunk();
         consumedchunks++;
-        fprintf(stderr,"DEBUG, so far consumed %d chunks out of %d\n",consumedchunks,receivedchunks);
-        timeradd(&tconsume,&period,&tmp);
-/*        timeradd(&tconsume,&consume_period,&tmp);*/
+        timeradd(&tconsume,&consume_period,&tmp);
         tconsume=tmp;
       }
     }

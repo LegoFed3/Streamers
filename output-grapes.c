@@ -33,7 +33,8 @@
 #include "dbg.h"
 
 double fixed_playout_delay=-1;
-struct timeval tconsume;
+extern struct timeval tconsume,consume_period;
+struct timeval tfirstchunk,tnow;
 
 static int last_chunk = -1;
 static int next_chunk = -1;
@@ -189,6 +190,7 @@ void output_deliver(const struct chunk *c)
   if (next_chunk == -1) {
     next_chunk = c->id; // FIXME: could be anything between c->id and (c->id - buff_size + 1 > 0) ? c->id - buff_size + 1 : 0
     fprintf(stderr,"First RX Chunk ID: %d\n", c->id);
+    gettimeofday(&tfirstchunk,NULL);
   }
 
   if(fixed_playout_delay < 0){
@@ -244,15 +246,18 @@ void output_deliver(const struct chunk *c)
       fprintf(stderr, "Crap!, chunkid:%d, storedid: %d\n", c->id, buff[c->id % buff_size].c.id);
       exit(-1);
     }
-    receivedchunks++;
-/*    {*/
-/*    struct timeval tlol;*/
-/*    gettimeofday(&tlol, NULL);*/
-/*    fprintf(stderr,"DEBUG: received chunk %d at time %f\n",c->id,tlol.tv_sec*1e6+tlol.tv_usec);*/
-/*    }*/
     /* We previously flushed, so we know that c->id is free */
     memcpy(&buff[c->id % buff_size].c, c, sizeof(struct chunk));
     buff[c->id % buff_size].c.data = malloc(c->size);
     memcpy(buff[c->id % buff_size].c.data, c->data, c->size);
+    /* Now estimate chunk arrival period */
+    receivedchunks++;
+    if(receivedchunks >= 5){//first time period is always 1, need at least 2
+      int interarrivaltime;
+      gettimeofday(&tnow,NULL);
+      interarrivaltime = (int)(((tnow.tv_sec * 1000000 + tnow.tv_usec) - (tfirstchunk.tv_sec * 1000000 + tfirstchunk.tv_usec))/((double)receivedchunks));
+      consume_period.tv_sec= interarrivaltime/1000000;
+      consume_period.tv_usec = interarrivaltime%100000;
+    }
   }
 }
