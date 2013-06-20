@@ -32,7 +32,7 @@
 #include "measures.h"
 #include "dbg.h"
 
-int fixed_playout_delay=-1;
+double fixed_playout_delay=-1;
 struct timeval tconsume;
 
 static int last_chunk = -1;
@@ -150,12 +150,12 @@ void consume_chunk(){
 /*  gettimeofday(&tmp, NULL);*/
 /*  fprintf(stderr,"DEBUG: trying to consume chunk %d, at time %d.%d\n",next_chunk,tmp.tv_sec,tmp.tv_usec);*/
   if(c->data){
-    fprintf(stderr,"DELAYREPORT_Y: delivering chunk %d\n",next_chunk);
+    if(chunk_log){fprintf(stderr,"DELAYREPORT_Y: delivering chunk %d\n",next_chunk);}
     //chunk_write(out, c); //called in buffer_free
     last_chunk = c->id;
     buffer_free(i);
   }else{
-    fprintf(stderr,"DELAYREPORT_N: missing chunk %d, can't deliver!\n",next_chunk);
+    if(chunk_log){fprintf(stderr,"DELAYREPORT_N: missing chunk %d, can't deliver!\n",next_chunk);}
     //this buffer space should be clear, but still...
     free(buff[i].c.data);
     buff[i].c.data = NULL;
@@ -168,7 +168,8 @@ void output_deliver(const struct chunk *c)
   if(fixed_playout_delay >= 0 && next_chunk == -1){
       //start chunk consumer
       gettimeofday(&tconsume, NULL);
-      tconsume.tv_sec+=fixed_playout_delay;
+      tconsume.tv_sec+=(int)fixed_playout_delay;
+      tconsume.tv_usec+=((int)(fixed_playout_delay*1e6))%(int)1e6;
   }
 
   if (!buff) {
@@ -191,23 +192,23 @@ void output_deliver(const struct chunk *c)
   }
 
   if(fixed_playout_delay < 0){
-    if (c->id >= next_chunk + buff_size) {
-      int i;
+  if (c->id >= next_chunk + buff_size) {
+    int i;
 
-      /* We might need some space for storing this chunk,
-       * or the stored chunks are too old
-       */
-      for (i = next_chunk; i <= c->id - buff_size; i++) {
-        if (buff[i % buff_size].c.data) {
-          buffer_free(i % buff_size);
-        } else {
-          reg_chunk_playout(c->id, false, c->timestamp); // FIXME: some chunks could be counted as lost at the beginning, depending on the initialization of next_chunk
-          next_chunk++;
-        }
+    /* We might need some space for storing this chunk,
+     * or the stored chunks are too old
+     */
+    for (i = next_chunk; i <= c->id - buff_size; i++) {
+      if (buff[i % buff_size].c.data) {
+        buffer_free(i % buff_size);
+      } else {
+        reg_chunk_playout(c->id, false, c->timestamp); // FIXME: some chunks could be counted as lost at the beginning, depending on the initialization of next_chunk
+        next_chunk++;
       }
-      buffer_flush(next_chunk);
-      dprintf("Next is now %d, chunk is %d\n", next_chunk, c->id);
     }
+    buffer_flush(next_chunk);
+    dprintf("Next is now %d, chunk is %d\n", next_chunk, c->id);
+  }
   }
 
   dprintf("%d == %d?\n", c->id, next_chunk);

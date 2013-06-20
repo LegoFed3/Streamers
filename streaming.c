@@ -341,8 +341,7 @@ void received_chunk(struct nodeID *from, const uint8_t *buff, int len)
     chunk_attributes_update_received(&c);
     chunk_unlock(c.id);
     dprintf("Received chunk %d from peer: %s\n", c.id, node_addr_tr(from));
-    if(chunk_log){fprintf(stderr, "TEO: Received chunk %d from peer: %s at: %"PRIu64" hopcount: %i Size: %d bytes\n", c.id, node_addr_tr(from), gettimeofday_in_us(), chunk_get_hopcount(&c), c.size);}
-    fprintf(stderr,"REPORTchunkdelay=%"PRIu64"\n",gettimeofday_in_us()-c.timestamp);
+    if(chunk_log){fprintf(stderr, "TEO: Received chunk %d from peer: %s at: %"PRIu64" hopcount: %i Size: %d bytes Delay: %"PRIu64" us\n", c.id, node_addr_tr(from), gettimeofday_in_us(), chunk_get_hopcount(&c), c.size,gettimeofday_in_us()-c.timestamp);}
     output_deliver(&c);
     res = cb_add_chunk(cb, &c);
     reg_chunk_receive(c.id, c.timestamp, chunk_get_hopcount(&c), res==E_CB_OLD, res==E_CB_DUPLICATE);
@@ -387,7 +386,7 @@ struct chunk *generated_chunk(suseconds_t *delta)
     return NULL;
   }
   dprintf("Generated chunk %d of %d bytes\n",c->id, c->size);
-  fprintf(stderr,"GENERATE_REPORT: generated chunk number %d\n",++num_generated_chunks);
+  if (chunk_log){fprintf(stderr,"TEO: generated chunk number %d, id %d\n",++num_generated_chunks,c->id);}
   chunk_attributes_fill(c);
   return c;
 }
